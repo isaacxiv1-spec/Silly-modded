@@ -9415,7 +9415,6 @@ function RoClothes(Player)
 				["Pants"] = 0,
 			},
 			["Clothing"] = {
-			    "Remove Breasts",
 				"Roblox Breasts Clothing",
 				"Roblox Shirt",
 				"Roblox Pants",
@@ -9444,7 +9443,7 @@ function RoClothes(Player)
 				BottomHP = 25,
 				DamageSFX = 5,
 				Volume = 10,
-				CockScale = 1.3,
+				CockScale = 1.2,
 			},
 			["Recolor"] = {
 					["BBC Cock"] = {
