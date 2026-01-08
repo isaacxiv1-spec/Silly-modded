@@ -9733,7 +9733,7 @@ function RoClothes(Player)
 			},
 			["TClothes"] = {
 				["Shirt"] = 1347527314,
-				["Pants"] = 8298871496
+				["Pants"] = 8298871496,
 			},	
 			["Clothing"] = {
 				"Butt Freckles",
