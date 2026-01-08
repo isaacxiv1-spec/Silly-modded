@@ -9430,7 +9430,7 @@ function RoClothes(Player)
 				RealtimeBodyTransparency = false,
 				PositionPhysicsMultiply = 1,
 				RotationPhysicsMultiply = 4,
-				BreastsScale = 1.1,
+				BreastsScale = 0,
 				ButtsScale = 1.2,
 				LegsScale = 1,
 				BreastsType = 1,
@@ -9511,8 +9511,8 @@ function RoClothes(Player)
         },
            ["NippleColor"] = Color3.fromRGB(100, 200, 150),
         },
-    ["silly female bee"] = {
-        ["Body Color"] = {
+        ["silly female bee"] = {
+            ["Body Color"] = {
             ["HeadColor3"] = Color3.fromRGB(255,238,140),
             ["LeftArmColor3"] = Color3.fromRGB(255,238,140),
             ["RightArmColor3"] = Color3.fromRGB(255,238,1405),
@@ -9546,7 +9546,7 @@ function RoClothes(Player)
     		"Roblox Butt Shirt",
         },
         ["Preset"] = {
-        Tone = "Dark",
+            Tone = "Dark",
             Face = false,
             AccessorySizeLock = true,
             BodyPartPhysics = true,
