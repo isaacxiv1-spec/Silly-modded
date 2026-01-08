@@ -9324,17 +9324,17 @@ function RoClothes(Player)
 				"Roblox Pants",
             },
         },
-		["horny bubble bee"] = {
+		["horny bubble girl"] = {
 			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(246, 207, 175),
-				["LeftArmColor3"] = Color3.fromRGB(246, 207, 175),
-				["RightArmColor3"] = Color3.fromRGB(246, 207, 175),
-				["LeftLegColor3"] = Color3.fromRGB(246, 207, 175),
-				["RightLegColor3"] = Color3.fromRGB(246, 207, 175)
-				["TorsoColor3"] = Color3.fromRGB(246, 207, 175),
+				["HeadColor3"] = Color3.fromRGB(233, 184, 14),
+				["LeftArmColor3"] = Color3.fromRGB(233, 184, 14),
+				["RightArmColor3"] = Color3.fromRGB(233, 184, 14),
+				["LeftLegColor3"] = Color3.fromRGB(233, 184, 14),
+				["RightLegColor3"] = Color3.fromRGB(233, 184, 14),
+				["TorsoColor3"] = Color3.fromRGB(233, 184, 14),
 			},
 			["Accessory"] = {
-    			17464799380,
+			    17464799380,
     			6905829932,
     			135262592826398,
     			17429094445,
@@ -9375,7 +9375,7 @@ function RoClothes(Player)
 				LegsType = 3,
 				ButtType = 3,
 		    },
-		}
+	    },
         ["Artful"] = {
             ["Body Color"] = {
                 ["HeadColor3"] = Color3.fromRGB(255, 255, 255),
