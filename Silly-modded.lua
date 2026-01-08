@@ -9405,54 +9405,53 @@ function RoClothes(Player)
                 15201704350,
                 9365216917,
                 12380949436,
-                
 			},
 			["Clothes"] = {
 				["Shirt"] = 18951898634,
 				["Pants"] = 18951907761,
-			},	
+			},
 			["TClothes"] = { 
-                ["Shirt"] = 0,
-                ["Pants"] = 0,
+				["Shirt"] = 0,
+				["Pants"] = 0,
 			},
 			["Clothing"] = {
-				"Remove Breasts",
-			    "Roblox Breasts Clothing",
+				"Roblox Breasts Clothing",
 				"Roblox Shirt",
 				"Roblox Pants",
 				"Roblox Butt Shirt Method2",
 				"Furry Knot",
-		    },				
-            ["NippleColor"] = Color3.fromRGB(116, 61, 433),
-                ["Preset"] = {
-                Tone = "Use NippleColor",
-                Face = false,
-                AccessorySizeLock = false,
-                BodyPartPhysics = true,
-                PhysicsObeyGravity = true,
-                RealtimeBodyTransparency = false,
-                PositionPhysicsMultiply = 1,
-                RotationPhysicsMultiply = 4,
-                BreastsScale = 1.1,
-                ButtsScale = 1.2,
-                LegsScale = 1,
-                BreastsType = 1,
-                TorsoType = 3,
-                ArmType = 2,
-                LegsType = 2,
-                ButtType = 1,
-                HardcoreHP = true,
-                TopHP = 25,
-                BottomHP = 25,
-                DamageSFX = 5,
-                Volume = 10,
-                CockScale = 1.5,
-            },
-            ["Recolor"] = {
-                ["Furry Knot"] = {
-                ["Primary"] = Color3.fromRGB(116, 61, 433)
-            },
-        },
+			},
+			["Preset"] = {
+				Tone = "Use NippleColor",
+				Face = false,
+				AccessorySizeLock = false,
+				BodyPartPhysics = true,
+				PhysicsObeyGravity = true,
+				RealtimeBodyTransparency = false,
+				PositionPhysicsMultiply = 1,
+				RotationPhysicsMultiply = 4,
+				BreastsScale = 1.1,
+				ButtsScale = 1.2,
+				LegsScale = 1,
+				BreastsType = 1,
+				TorsoType = 3,
+				ArmType = 2,
+				LegsType = 2,
+				ButtType = 1,
+				HardcoreHP = true,
+				TopHP = 25,
+				BottomHP = 25,
+				DamageSFX = 5,
+				Volume = 10,
+				CockScale = 1.5,
+			},
+			["Recolor"] = {
+					["Furry Knot"] = {
+						["Primary"] = Color3.fromRGB(176, 108, 73),
+			},
+		},
+			["NippleColor"] = Color3.fromRGB(176, 108, 73),
+		},
 		["Moony (Alt)"] = {
             ["Body Color"] = {
                 ["HeadColor3"] = Color3.fromRGB(255, 255, 255),
@@ -9481,7 +9480,6 @@ function RoClothes(Player)
             "Roblox Butt Shirt Method2",
             "Furry Knot"
         },
-        ["NippleColor"] = Color3.fromRGB(100, 200, 150),
         ["Preset"] = {
             Tone = "Use NippleColor",
             Face = false,
@@ -9510,6 +9508,8 @@ function RoClothes(Player)
             ["Furry Knot"] = {
                 ["Primary"] = Color3.fromRGB(100, 200, 150)
             },
+        },
+           ["NippleColor"] = Color3.fromRGB(100, 200, 150),
         },
 		-- Clothing Bundles --
 		["Roblox Clothing"] = {
