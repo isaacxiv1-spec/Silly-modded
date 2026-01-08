@@ -9415,11 +9415,12 @@ function RoClothes(Player)
 				["Pants"] = 0,
 			},
 			["Clothing"] = {
+			    "Remove Breasts",
 				"Roblox Breasts Clothing",
 				"Roblox Shirt",
 				"Roblox Pants",
 				"Roblox Butt Shirt Method2",
-				"Furry Knot",
+				"BBC Cock",
 			},
 			["Preset"] = {
 				Tone = "Use NippleColor",
@@ -9443,10 +9444,10 @@ function RoClothes(Player)
 				BottomHP = 25,
 				DamageSFX = 5,
 				Volume = 10,
-				CockScale = 1.5,
+				CockScale = 1.3,
 			},
 			["Recolor"] = {
-					["Furry Knot"] = {
+					["BBC Cock"] = {
 						["Primary"] = Color3.fromRGB(176, 108, 73),
 			},
 		},
