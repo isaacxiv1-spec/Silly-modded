@@ -9450,7 +9450,7 @@ function RoClothes(Player)
             },
             ["Recolor"] = {
                 ["Furry Knot"] = {
-                ["Primary"] = Color3.fromRGB(116, 61, 433),
+                ["Primary"] = Color3.fromRGB(116, 61, 433)
             },
         },
 		["Moony (Alt)"] = {
@@ -9508,7 +9508,7 @@ function RoClothes(Player)
         },
         ["Recolor"] = {
             ["Furry Knot"] = {
-                ["Primary"] = Color3.fromRGB(100, 200, 150),
+                ["Primary"] = Color3.fromRGB(100, 200, 150)
             },
         },
 		-- Clothing Bundles --
