@@ -9675,7 +9675,7 @@ function RoClothes(Player)
 			},
 			["TClothes"] = {
 				["Shirt"] = 0,
-				["Pants"] = 0
+				["Pants"] = 0,
 			},	
 			["Clothing"] = {
 				"Roblox Breasts Clothing",
