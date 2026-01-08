@@ -9327,8 +9327,8 @@ function RoClothes(Player)
 		["horny bubble girl"] = {
 			["Body Color"] = {
 				["HeadColor3"] = Color3.fromRGB(233, 183, 138),
-				["LeftArmColor3"] = Color3.fromRGB(233,183,138),
-				["RightArmColor3"] = Color3.fromRGB(2233, 183, 138),
+				["LeftArmColor3"] = Color3.fromRGB(233, 183, 138),
+				["RightArmColor3"] = Color3.fromRGB(233, 183, 138),
 				["LeftLegColor3"] = Color3.fromRGB(233, 183, 138),
 				["RightLegColor3"] = Color3.fromRGB(233, 183, 138),
 				["TorsoColor3"] = Color3.fromRGB(233, 183, 138),
