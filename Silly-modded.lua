@@ -9447,7 +9447,7 @@ function RoClothes(Player)
                 DamageSFX = 5,
                 Volume = 10,
                 CockScale = 1.5,
-        },
+            },
             ["Recolor"] = {
                 ["Furry Knot"] = {
                 ["Primary"] = Color3.fromRGB(116, 61, 433),
