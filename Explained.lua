@@ -9764,7 +9764,7 @@ function RoClothes(Player)
 				DamageSFX = 0.1,
 				Volume = 100.2,
 			},
-			["NippleColor"] = Color3.fromRGB(149, 126, 104),
+			    ["NippleColor"] = Color3.fromRGB(149, 126, 104),
 			},
 		},
 		["Toxic"] = {
