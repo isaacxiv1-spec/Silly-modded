@@ -9343,12 +9343,12 @@ function RoClothes(Player)
     			118024871077461,
 			},
 			["Clothes"] = {
-				["Shirt"] = 95786245555960, 
-				["Pants"] = 93476707243800,
-			},
-			["TClothes"] = {
 				["Shirt"] = 96591384894787,
 				["Pants"] = 106678253654168,
+			},
+			["TClothes"] = {
+				["Shirt"] = 95786245555960,
+				["Pants"] = 93476707243800,
 			},	
 			["Clothing"] = {
 				"Roblox Breasts Clothing",
@@ -9378,7 +9378,7 @@ function RoClothes(Player)
 				DamageSFX = 0.1,
 				Volume = 1,
 			},
-		},
+		},	
 		["silly eepy"] = {
 			["Body Color"] = {
 				["HeadColor3"] = Color3.fromRGB(233, 183, 138),
