@@ -9331,7 +9331,7 @@ function RoClothes(Player)
 				["RightArmColor3"] = Color3.fromRGB(255, 188, 217),
 				["LeftLegColor3"] = Color3.fromRGB(255, 188, 217),
 				["RightLegColor3"] = Color3.fromRGB(255, 188, 217),
-				["TorsoColor3"] = Color3.fromRGB(255, 188, 217)),
+				["TorsoColor3"] = Color3.fromRGB(255, 188, 217),
 			},
 			["Accessory"] = {
     			18516734063,
@@ -9353,10 +9353,10 @@ function RoClothes(Player)
 				["Pants"] = 8915016962,
 			},
 			["Clothing"] = {
+				"Roblox Breasts Clothing",
 				"Roblox Shirt",
 				"Roblox Pants",
-				"Roblox Breasts Clothing",
-				"Roblox Butt Shirt",
+				"Roblox Butt Shirt Method2"
 			},
 			["Preset"] = {
                 Tone = "Dark",
