@@ -9441,7 +9441,7 @@ function RoClothes(Player)
                 Volume = 2.5,
     	    },
 	    },
-	    ["warning sign girl"] = {
+		["hottest warning"] = {
 			["Body Color"] = {
 				["HeadColor3"] = Color3.fromRGB(233, 183, 138),
 				["LeftArmColor3"] = Color3.fromRGB(233, 183, 138),
@@ -9461,8 +9461,8 @@ function RoClothes(Player)
     			87923023144460,
 			},
 			["Clothes"] = {
-				["Shirt"] = 5246194410,
-				["Pants"] = 5246708597,
+				["Shirt"] = 5246708597,
+				["Pants"] = 5246194410,				
 			},
 			["Clothing"] = {
 				"Roblox Breasts Clothing",
