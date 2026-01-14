@@ -9331,7 +9331,7 @@ function RoClothes(Player)
 				["RightArmColor3"] = Color3.fromRGB(185, 184, 192),
 				["LeftLegColor3"] = Color3.fromRGB(185, 184, 192),
 				["RightLegColor3"] = Color3.fromRGB(185, 184, 192),
-				["TorsoColor3"] = Color3.fromRGB(255, 255, 255),
+                ["TorsoColor3"] = Color3.fromRGB(255, 255, 255),
 			},
 			["Accessory"] = {
 			    18404566060,
