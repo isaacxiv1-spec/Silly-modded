@@ -9463,11 +9463,7 @@ function RoClothes(Player)
 			},
 			["Clothes"] = {
 				["Shirt"] = 5246194410,
-				["Pants"] = 5246708597,				
-		    },
-		    ["TClothes"] = {
-				["Shirt"] = 0,
-				["Pants"] = 0,
+				["Pants"] = 5246708597,
 			},
 			["Clothing"] = {
 				"Roblox Breasts Clothing",
@@ -9509,7 +9505,7 @@ function RoClothes(Player)
 				["TorsoColor3"] = Color3.fromRGB(255, 255, 255),
 			},
 			["Accessory"] = {
-			106678253654168,
+			    106678253654168,
     			17840795480,
     			77394587584928,
     			96530087039020,
