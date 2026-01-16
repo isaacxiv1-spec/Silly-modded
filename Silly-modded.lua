@@ -9324,13 +9324,13 @@ function RoClothes(Player)
 				"Roblox Pants",
             },
         },
-        ["Orky cutesy"] = {
+		["Orky cutesy"] = {
 			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(1, 2, 3),
-				["LeftArmColor3"] = Color3.fromRGB(1, 2, 3),
-				["RightArmColor3"] = Color3.fromRGB(1, 2, 3),
-				["LeftLegColor3"] = Color3.fromRGB(1, 2, 3),
-				["RightLegColor3"] = Color3.fromRGB(1, 2, 3),
+				["HeadColor3"] = Color3.fromRGB(0, 0, 0),
+				["LeftArmColor3"] = Color3.fromRGB(0, 0, 0),
+				["RightArmColor3"] = Color3.fromRGB(0, 0, 0),
+				["LeftLegColor3"] = Color3.fromRGB(0, 0, 0),
+				["RightLegColor3"] = Color3.fromRGB(0, 0, 0),
 				["TorsoColor3"] = Color3.fromRGB(255, 255, 255),
 			},
 			["Accessory"] = {
@@ -9358,9 +9358,10 @@ function RoClothes(Player)
 				"Roblox Shirt",
 				"Roblox Pants",
 				"Roblox Butt Shirt Method2",
+				"Oiled",
 			},
 			["Preset"] = {
-                Tone = "Dark",
+                Tone = "Use NippleColor",
                 Face = false,
                 AccessorySizeLock = true,
                 BodyPartPhysics = true,
@@ -9381,8 +9382,9 @@ function RoClothes(Player)
                 BottomHP = 25,
                 DamageSFX = 5,
                 Volume = 2.5,
-		    },
-	    },
+            },
+			["NippleColor"] = Color3.fromRGB(0, 0, 0),
+		},
 		["shark sailor"] = {
 			["Body Color"] = {
 				["HeadColor3"] = Color3.fromRGB(185, 184, 192),
