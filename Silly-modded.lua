@@ -9324,7 +9324,7 @@ function RoClothes(Player)
 				"Roblox Pants",
             },
         },
-        ["berry test"] = {
+		["berry test"] = {
 			["Body Color"] = {
                 ["HeadColor3"] = Color3.fromRGB(121, 206, 224),
                 ["LeftArmColor3"] = Color3.fromRGB(121, 206, 224),
@@ -9334,7 +9334,7 @@ function RoClothes(Player)
                 ["TorsoColor3"] = Color3.fromRGB(121, 206, 224),
 			},
 			["Accessory"] = {
-			12380949436,
+                12380949436,
                 12929887151,
                 138546831353221,
                 18605619191,
@@ -9343,10 +9343,9 @@ function RoClothes(Player)
                 7486050081,
 			},
 			["Clothes"] = {
-				["Shirt"] = 0,
-				["Pants"] = 97763465427285,
+                ["Shirt"] = 0,
+                ["Pants"] = 97763465427285,
 			},
-			["Clothing"] = {
 			["Clothing"] = {
 				"Roblox Breasts Clothing",
 				"Roblox Shirt",
