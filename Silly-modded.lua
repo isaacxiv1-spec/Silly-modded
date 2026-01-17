@@ -9411,6 +9411,7 @@ function RoClothes(Player)
                 Tone = "Use NippleColor",
                 Face = false,
                 AccessorySizeLock = true,
+                tailPhysicsEnabled = false,
                 BodyPartPhysics = true,
                 PhysicsObeyGravity = true,
                 RealtimeBodyTransparency = false,
