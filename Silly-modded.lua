@@ -8924,7 +8924,7 @@ function RoClothes(Player)
 				"Roblox Pants",
             },
         },
-        		["koi shark twin 1"] = {
+        ["koi shark twin 1"] = {
 			["Body Color"] = {
                 ["HeadColor3"] = Color3.fromRGB(255, 255, 255),
                 ["LeftArmColor3"] = Color3.fromRGB(255, 255, 255),
