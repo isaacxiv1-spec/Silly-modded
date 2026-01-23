@@ -10397,7 +10397,7 @@ function RoClothes(Player)
 				Volume = 100.2,
 			},
 		},
-	["Van1ty (Displacement)"] = {
+    	["Van1ty (Displacement)"] = {
 			["Body Color"] = {
 				["HeadColor3"] = Color3.fromRGB(254, 200, 200),
 				["LeftArmColor3"] = Color3.fromRGB(254, 200, 200),
@@ -10456,7 +10456,7 @@ function RoClothes(Player)
 				DamageSFX = 0.1,
 				Volume = 100.2,
 			},
-	},	
+    	},	
 		["Observer"] = {
 			["Body Color"] = {
 				["HeadColor3"] = Color3.fromRGB(0, 0, 0),
