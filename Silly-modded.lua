@@ -8898,33 +8898,7 @@ function RoClothes(Player)
 				6472725579
 			}
 		},
-		["Mimi"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(233, 184, 145),
-				["LeftArmColor3"] = Color3.fromRGB(233, 184, 145),
-				["RightArmColor3"] = Color3.fromRGB(233, 184, 145),
-				["LeftLegColor3"] = Color3.fromRGB(233, 184, 145),
-				["RightLegColor3"] = Color3.fromRGB(233, 184, 145),
-				["TorsoColor3"] = Color3.fromRGB(233, 184, 145),
-			},
-			["Accessory"] = {
-				82879052599298,
-				120729210458213,
-				17590602534,
-				73567120581664
-			},
-			["Clothes"] = {
-				["Shirt"] = 121936175724069,
-				["Pants"] = 107910834770771,
-			},
-			["Clothing"] = {
-				"Roblox Breasts Clothing",
-				"Roblox Shirt",
-				"Roblox Butt Shirt",
-				"Roblox Pants",
-            },
-        },
-		["koi red shark twin 2"] = {
+		["koi red shark twin 1"] = {
 			["Body Color"] = {
                 ["HeadColor3"] = Color3.fromRGB(255, 255, 255),
                 ["LeftArmColor3"] = Color3.fromRGB(255, 255, 255),
@@ -8936,7 +8910,7 @@ function RoClothes(Player)
 			["Accessory"] = {
 			    14021743801,
                 14157787251,
-                17840795480,
+                17840795480 
                 83798057909209,
                 85199272207486,
                 88240789925026,
@@ -9006,9 +8980,9 @@ function RoClothes(Player)
 				["TorsoColor3"] = Color3.fromRGB(0, 0, 0),
 			},
 			["Accessory"] = {
-                14021743801,
+			    14021743801,
                 14157787251,
-                17840795480,
+                17840795480 
                 83798057909209,
                 85199272207486,
                 88240789925026,
@@ -9016,10 +8990,11 @@ function RoClothes(Player)
                 105970733364073,
                 110868544078016,
                 79266192873471,
-                134951036731363,
-                116163592917304,
                 13711359787,
-                14155908949,
+                15090271167,
+                17701452014,
+                17701447118,
+                17701457534,
 			},
 			["Clothes"] = {
 				["Shirt"] = 119096305028572,
@@ -10308,7 +10283,8 @@ function RoClothes(Player)
 					["Primary"] = Color3.fromRGB(232, 196, 208)
 			}
 		},
-		},		
+		},	
+		
 		["Celestial"] = {
 			["Body Color"] = {
 				["HeadColor3"] = Color3.fromRGB(255, 255, 255),
@@ -10679,7 +10655,7 @@ function RoClothes(Player)
 				Volume = 100.2,
 			},
 		},
-    	["Van1ty (Displacement)"] = {
+	["Van1ty (Displacement)"] = {
 			["Body Color"] = {
 				["HeadColor3"] = Color3.fromRGB(254, 200, 200),
 				["LeftArmColor3"] = Color3.fromRGB(254, 200, 200),
@@ -10738,7 +10714,7 @@ function RoClothes(Player)
 				DamageSFX = 0.1,
 				Volume = 100.2,
 			},
-    	},	
+	},	
 		["Observer"] = {
 			["Body Color"] = {
 				["HeadColor3"] = Color3.fromRGB(0, 0, 0),
@@ -19075,7 +19051,7 @@ function RoClothes(Player)
 	GUIObject.PageFrame.Position = UDim2.new(0,0,0)
 	GUIObject.PageFrame.Size = UDim2.new(1,0,1,0)
 
-	GUIObject.UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 255, 255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB157, 0, 255))}
+	GUIObject.UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(168,136,255)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 192, 211))}
 	GUIObject.UIGradient.Rotation = -90
 	GUIObject.UIGradient.Parent = GUIObject.PageFrame
 
