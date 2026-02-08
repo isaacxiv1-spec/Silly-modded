@@ -714,7 +714,7 @@ function RoClothes(Player)
 				["Torso"] = false,
 				["Right Leg"] = false,
 				["Left Leg"] = false,
-				["Hat"] = true,
+				["Hat"] = true
 			},
 
 			CurrentPartList = {
@@ -779,7 +779,7 @@ function RoClothes(Player)
 		["Right Arm"] = CFrame.new(0, 0.2, 0),
 		["Left Arm"] = CFrame.new(0, 0.2, 0),
 		["Right Leg"] = CFrame.new(0, 0.2, 0),
-		["Left Leg"] = CFrame.new(0, 0.2, 0),
+		["Left Leg"] = CFrame.new(0, 0.2, 0)
 	}
 
 	local ConvertPart = {
@@ -787,7 +787,7 @@ function RoClothes(Player)
 		["Right Arm"] = "RightLowerArm",
 		["Left Arm"] = "LeftLowerArm",
 		["Right Leg"] = "RightLowerLeg",
-		["Left Leg"] = "LeftLowerLeg",
+		["Left Leg"] = "LeftLowerLeg"
 	}
 
 	local R6Mesh = {
@@ -796,7 +796,7 @@ function RoClothes(Player)
 		["Right Arm"] = "rbxassetid://5062992824",
 		["Left Arm"] = "rbxassetid://5062992824",
 		["Right Leg"] = "rbxassetid://5062992824",
-		["Left Leg"] = "rbxassetid://5062992824",
+		["Left Leg"] = "rbxassetid://5062992824"
 	}
 
 	--[[
@@ -858,10 +858,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			},
 			["Left Leg"] = {
 				["Instance"] = "Mesh",
@@ -877,12 +877,12 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Left Leg",
+					[1] = "Left Leg"
 				},
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {"Size", ["CFrame1"]=300},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			},
 			["Right Leg"] = {
 				["Instance"] = "Mesh",
@@ -898,12 +898,12 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {"Size", ["CFrame1"]=300},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			},
 			["Left Arm"] = {
 				["Instance"] = "Mesh",
@@ -918,10 +918,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Left Arm",
+					[1] = "Left Arm"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "ShirtTexture",
+				["Function"] = "ShirtTexture"
 			},
 			["Right Arm"] = {
 				["Instance"] = "Mesh",
@@ -936,10 +936,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Right Arm",
+					[1] = "Right Arm"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "ShirtTexture",
+				["Function"] = "ShirtTexture"
 			},
 			["Left Butt"] = {
 				["Instance"] = "Mesh",
@@ -955,7 +955,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Function"] = "PantsTexture",
 				["Scale"] = "ButtsScale",
@@ -975,7 +975,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Function"] = "PantsTexture",
 				["Scale"] = "ButtsScale",
@@ -995,7 +995,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Function"] = "AreolaDecalCreate",
 				["Scale"] = "BreastsScale",
@@ -1015,7 +1015,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Function"] = "AreolaDecalCreate",
 				["Scale"] = "BreastsScale",
@@ -1038,7 +1038,7 @@ function RoClothes(Player)
 					[2] = "Left Breast",
 				},
 				["Function"] = "DarkPart",
-				["Scale"] = "BreastsScale",
+				["Scale"] = "BreastsScale"
 			},
 			["Right Nipple"] = {
 				["Instance"] = "Mesh",
@@ -1057,7 +1057,7 @@ function RoClothes(Player)
 					[2] = "Right Breast",
 				},
 				["Function"] = "DarkPart",
-				["Scale"] = "BreastsScale",
+				["Scale"] = "BreastsScale"
 			},
 			["BBC Rod"] = {
 				["Instance"] = "Mesh",
@@ -1398,7 +1398,7 @@ function RoClothes(Player)
 					[2] = "Left Breast",
 				},
 				["Function"] = {"DarkPart", "AreolaType4Mesh"},
-				["Scale"] = "BreastsScale",
+				["Scale"] = "BreastsScale"
 			}, 
 			["Right Areola Type 4"] = {
 				["Instance"] = "Part",
@@ -1418,7 +1418,7 @@ function RoClothes(Player)
 					[2] = "Right Breast",
 				},
 				["Function"] = {"DarkPart", "AreolaType4Mesh"},
-				["Scale"] = "BreastsScale",
+				["Scale"] = "BreastsScale"
 			}, 
 			["Left Nipple Type 4"] = {
 				["Instance"] = "Mesh",
@@ -1440,7 +1440,7 @@ function RoClothes(Player)
 					[3] = "Areola",
 				},
 				["Function"] = "DarkPart",
-				["Scale"] = "BreastsScale",
+				["Scale"] = "BreastsScale"
 			}, 
 			["Right Nipple Type 4"] = {
 				["Instance"] = "Mesh",
@@ -1462,7 +1462,7 @@ function RoClothes(Player)
 					[3] = "Areola",
 				},
 				["Function"] = "DarkPart",
-				["Scale"] = "BreastsScale",
+				["Scale"] = "BreastsScale"
 			}, 
 			["Pussy Closed"] = {
 				["Instance"] = "Mesh",
@@ -1496,7 +1496,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Pussy",
 				},
-				["Function"] = "DarkPart",
+				["Function"] = "DarkPart"
 			},
 			["Vulva Closed"] = {
 				["Instance"] = "Mesh",
@@ -1514,7 +1514,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Pussy",
 				},
-				["Function"] = "DarkPart",
+				["Function"] = "DarkPart"
 			},
 			["Vagina Closed"] = {
 				["Instance"] = "Mesh",
@@ -1532,7 +1532,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Pussy",
 				},
-				["Function"] = "Dark2Part",
+				["Function"] = "Dark2Part"
 			},
 			["Pussy Open"] = {
 				["Instance"] = "Mesh",
@@ -1566,7 +1566,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Pussy",
 				},
-				["Function"] = "DarkPart",
+				["Function"] = "DarkPart"
 			}, 
 			["Vulva Open"] = {
 				["Instance"] = "Mesh",
@@ -1584,7 +1584,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Pussy",
 				},
-				["Function"] = "DarkPart",
+				["Function"] = "DarkPart"
 			}, 
 			["Vagina Open"] = {
 				["Instance"] = "Mesh",
@@ -1602,7 +1602,7 @@ function RoClothes(Player)
 					[1] = "Torso",
 					[2] = "Pussy",
 				},
-				["Function"] = "Dark2Part",
+				["Function"] = "Dark2Part"
 			}, 
 			["Torso2"] = {
 				["Instance"] = "Mesh",
@@ -1617,10 +1617,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			},
 			["Right Arm2"] = {
 				["Instance"] = "Mesh",
@@ -1637,10 +1637,10 @@ function RoClothes(Player)
 					["Color"] = "Parent",
 				},
 				["Parent"] = {
-					[1] = "Right Arm",
+					[1] = "Right Arm"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "ShirtTexture",
+				["Function"] = "ShirtTexture"
 			}, 
 			["Left Arm2"] = {
 				["Instance"] = "Mesh",
@@ -1656,10 +1656,10 @@ function RoClothes(Player)
 					["Color"] = "Parent",
 				},
 				["Parent"] = {
-					[1] = "Left Arm",
+					[1] = "Left Arm"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "ShirtTexture",
+				["Function"] = "ShirtTexture"
 			}, 
 			["Torso3"] = {
 				["Instance"] = "Mesh",
@@ -1675,10 +1675,10 @@ function RoClothes(Player)
 					["Color"] = "Parent",
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			}, 
 			["Right Leg3"] = {
 				["Instance"] = "Mesh",
@@ -1695,12 +1695,12 @@ function RoClothes(Player)
 					["Color"] = "Parent",
 				},
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {"Size", ["CFrame1"]=300},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			}, 
 			["Left Leg3"] = {
 				["Instance"] = "Mesh",
@@ -1718,12 +1718,12 @@ function RoClothes(Player)
 					["Color"] = "Parent",
 				},
 				["Parent"] = {
-					[1] = "Left Leg",
+					[1] = "Left Leg"
 				},
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {"Size", ["CFrame1"]=300},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			}, 
 			["Torso4"] = {
 				["Instance"] = "Mesh",
@@ -1738,10 +1738,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			},
 			["Left Leg2"] = {
 				["Instance"] = "Mesh",
@@ -1757,12 +1757,12 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Left Leg",
+					[1] = "Left Leg"
 				},
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {"Size", ["CFrame1"]=300},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			},
 			["Right Leg2"] = {
 				["Instance"] = "Mesh",
@@ -1778,12 +1778,12 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {"Size", ["CFrame1"]=300},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			},
 
 			["Torso5"] = {
@@ -1800,10 +1800,10 @@ function RoClothes(Player)
 					["Color"] = "Parent",
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			}, 
 			["Left Leg4"] = {
 				["Instance"] = "Mesh",
@@ -1819,12 +1819,12 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Left Leg",
+					[1] = "Left Leg"
 				},
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {"Size", ["CFrame1"]=300},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			},
 			["Right Leg4"] = {
 				["Instance"] = "Mesh",
@@ -1840,12 +1840,12 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {"Size", ["CFrame1"]=300},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			},
 			["Right Arm3"] = {
 				["Instance"] = "Mesh",
@@ -1862,10 +1862,10 @@ function RoClothes(Player)
 					["Color"] = "Parent",
 				},
 				["Parent"] = {
-					[1] = "Right Arm",
+					[1] = "Right Arm"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "ShirtTexture",
+				["Function"] = "ShirtTexture"
 			}, 
 			["Left Arm3"] = {
 				["Instance"] = "Mesh",
@@ -1881,10 +1881,10 @@ function RoClothes(Player)
 					["Color"] = "Parent",
 				},
 				["Parent"] = {
-					[1] = "Left Arm",
+					[1] = "Left Arm"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "ShirtTexture",
+				["Function"] = "ShirtTexture"
 			}, 
 
 			["Torso6"] = {
@@ -1901,10 +1901,10 @@ function RoClothes(Player)
 					["Color"] = "Parent",
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			},
 			["Right Arm4"] = {
 				["Instance"] = "Mesh",
@@ -1921,10 +1921,10 @@ function RoClothes(Player)
 					["Color"] = "Parent",
 				},
 				["Parent"] = {
-					[1] = "Right Arm",
+					[1] = "Right Arm"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "ShirtTexture",
+				["Function"] = "ShirtTexture"
 			}, 
 			["Left Arm4"] = {
 				["Instance"] = "Mesh",
@@ -1940,10 +1940,10 @@ function RoClothes(Player)
 					["Color"] = "Parent",
 				},
 				["Parent"] = {
-					[1] = "Left Arm",
+					[1] = "Left Arm"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "ShirtTexture",
+				["Function"] = "ShirtTexture"
 			}, 
 
 			["Torso7"] = {
@@ -1960,10 +1960,10 @@ function RoClothes(Player)
 					["Color"] = "Parent",
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			},
 
 			["Left Butt2"] = {
@@ -1980,7 +1980,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Function"] = "PantsTexture",
 				["Scale"] = "ButtsScale",
@@ -2000,7 +2000,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Function"] = "PantsTexture",
 				["Scale"] = "ButtsScale",
@@ -2020,7 +2020,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Function"] = "PantsTexture",
 				["Scale"] = "ButtsScale",
@@ -2040,7 +2040,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Function"] = "PantsTexture",
 				["Scale"] = "ButtsScale",
@@ -2061,12 +2061,12 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {"Size", ["CFrame1"]=300},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			}, 
 			["Left Leg5"] = {
 				["Instance"] = "Mesh",
@@ -2082,12 +2082,12 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Left Leg",
+					[1] = "Left Leg"
 				},
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {"Size", ["CFrame1"]=300},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			}, 
 			["Torso8"] = {
 				["Instance"] = "Mesh",
@@ -2102,10 +2102,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			}, 
 			["Right Leg6"] = {
 				["Instance"] = "Mesh",
@@ -2121,12 +2121,12 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {"Size", ["CFrame1"]=300},
 				["ParentTransparency"] = 1,
-				["Function"] = "PantsTexture",
+				["Function"] = "PantsTexture"
 			}, 
 			["Left Leg6"] = {
 				["Instance"] = "Mesh",
@@ -2142,7 +2142,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Left Leg",
+					[1] = "Left Leg"
 				},
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {"Size", ["CFrame1"]=300},
@@ -2206,7 +2206,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Function"] = "BBCBallPhysics",
 				["Scale"] = "CockScale",
@@ -2409,7 +2409,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Function"] = "BBCBallPhysics",
 				["Scale"] = "CockScale",
@@ -2613,7 +2613,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Scale"] = "BreastsScale",
 				["AdjustScale"] = {"Size", "CFrame1"}
@@ -2632,7 +2632,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Scale"] = "BreastsScale",
 				["AdjustScale"] = {"Size", "CFrame1"}
@@ -2656,7 +2656,7 @@ function RoClothes(Player)
 					[2] = "Left Breast",
 				},
 				["Function"] = {"NippleType5Mesh", "AreolaDecalType5Create"},
-				["Scale"] = "BreastsScale",
+				["Scale"] = "BreastsScale"
 			},
 			["Right Nipple Type 5"] = {
 				["Instance"] = "Part",
@@ -2677,7 +2677,7 @@ function RoClothes(Player)
 					[2] = "Right Breast",
 				},
 				["Function"] = {"NippleType5Mesh", "AreolaDecalType5Create"},
-				["Scale"] = "BreastsScale",
+				["Scale"] = "BreastsScale"
 			},
 			-- CLOTHES PARTS
 			["School Shirt"] = {
@@ -2885,7 +2885,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Bodyless Neck"] = {
 				["Instance"] = "Mesh",
@@ -2903,7 +2903,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Bodyless Right Arm"] = {
 				["Instance"] = "Mesh",
@@ -2921,7 +2921,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Right Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Bodyless Left Arm"] = {
 				["Instance"] = "Mesh",
@@ -2939,7 +2939,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Left Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Dress Bra"] = {
 				["Instance"] = "Mesh",
@@ -3042,7 +3042,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Birdly Dress Sling"] = {
 				["Instance"] = "Mesh",
@@ -3128,7 +3128,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Right Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Birdly Dress Right Sleeve 2"] = {
 				["Instance"] = "Mesh",
@@ -3163,7 +3163,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Left Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Birdly Dress Left Sleeve 2"] = {
 				["Instance"] = "Mesh",
@@ -3232,7 +3232,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Right Leg",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Left Sock"] = {
 				["Instance"] = "Mesh",
@@ -3250,7 +3250,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Left Leg",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Killer Sweater"] = {
 				["Instance"] = "Mesh",
@@ -3264,11 +3264,11 @@ function RoClothes(Player)
 				["MeshId"] = "rbxasset://RClothesContent/10080455422.mesh",
 				["Name"] = "Sweater",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Size"] = Vector3.new(2.621, 2.224, 2.378),
 				["Transparency"] = 0,
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Killer Sweater Tie"] = {
 				["Instance"] = "Mesh",
@@ -3283,7 +3283,7 @@ function RoClothes(Player)
 				["Name"] = "Tie",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Sweater",
+					[2] = "Sweater"
 				},
 				["Size"] = Vector3.new(0.645, 1.120, 0.144),
 				["Transparency"] = 0
@@ -3301,7 +3301,7 @@ function RoClothes(Player)
 				["Name"] = "Neck",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Sweater",
+					[2] = "Sweater"
 				},
 				["Size"] = Vector3.new(1.209999918937683, 0.18462184071540833, 1.2289236783981323),
 				["Transparency"] = 0
@@ -3317,7 +3317,7 @@ function RoClothes(Player)
 				["MeshId"] = "rbxasset://RClothesContent/6297176322.mesh",
 				["Name"] = "Bra",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Size"] = Vector3.new(1.8829039335250854, 1.1392192840576172, 1.8722314834594727),
 				["TextureId"] = "rbxasset://RClothesContent/12038926049.png",
@@ -3334,7 +3334,7 @@ function RoClothes(Player)
 				["MeshId"] = "rbxasset://RClothesContent/6297229742.mesh",
 				["Name"] = "Panty",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Size"] = Vector3.new(1.1498957872390747, 0.9570162296295166, 1.8741321563720703),
 				["TextureId"] = "rbxasset://RClothesContent/12038931250.png",
@@ -3356,9 +3356,9 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Secondary",
 				["Parent"] = {
-					[1] = "Right Arm",
+					[1] = "Right Arm"
 				},
-				["Function"] = "BunnyBandPin",
+				["Function"] = "BunnyBandPin"
 			}, 
 			["Bow"] = {
 				["Instance"] = "Mesh",
@@ -3376,7 +3376,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Left Bunny Band"] = {
@@ -3395,9 +3395,9 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Secondary",
 				["Parent"] = {
-					[1] = "Left Arm",
+					[1] = "Left Arm"
 				},
-				["Function"] = "BunnyBandPin",
+				["Function"] = "BunnyBandPin"
 			}, 
 			["Bunny Tail"] = {
 				["Instance"] = "Mesh",
@@ -3415,7 +3415,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Tertiary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Torso String"] = {
@@ -3434,9 +3434,9 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "StringTexture",
+				["Function"] = "StringTexture"
 			}, 
 			["Bunny Suit"] = {
 				["Instance"] = "Mesh",
@@ -3454,9 +3454,9 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "ToarBreastsOffset",
+				["Function"] = "ToarBreastsOffset"
 			}, 
 			["Bunny Ears"] = {
 				["Instance"] = "Mesh",
@@ -3473,7 +3473,7 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(255, 255, 255),
 				},
 				["Parent"] = {
-					[1] = "Head",
+					[1] = "Head"
 				},
 			}, 
 			["Right Leg String"] = {
@@ -3496,9 +3496,9 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Right Leg",
-					[2] = "Right Leg Mesh",
+					[2] = "Right Leg Mesh"
 				},
-				["Function"] = "StringTexture",
+				["Function"] = "StringTexture"
 			}, 
 			["Left Leg String"] = {
 				["Instance"] = "Mesh",
@@ -3520,9 +3520,9 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Left Leg",
-					[2] = "Left Leg Mesh",
+					[2] = "Left Leg Mesh"
 				},
-				["Function"] = "StringTexture",
+				["Function"] = "StringTexture"
 			}, 
 			["Left Butt String"] = {
 				["Instance"] = "Mesh",
@@ -3544,9 +3544,9 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Butt",
+					[2] = "Left Butt"
 				},
-				["Function"] = "StringTexture",
+				["Function"] = "StringTexture"
 			}, 
 			["Right Butt String"] = {
 				["Instance"] = "Mesh",
@@ -3568,9 +3568,9 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Butt",
+					[2] = "Right Butt"
 				},
-				["Function"] = "StringTexture",
+				["Function"] = "StringTexture"
 			}, 
 			["Pussy String"] = {
 				["Instance"] = "Mesh",
@@ -3588,7 +3588,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "StringTexture",
+				["Function"] = "StringTexture"
 			},
 			["Kitty Bra"] = {
 				["Instance"] = "Mesh",
@@ -3606,7 +3606,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Kitty Ears"] = {
@@ -3624,7 +3624,7 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(17.00000088661909, 17.00000088661909, 17.00000088661909),
 				},
 				["Parent"] = {
-					[1] = "Head",
+					[1] = "Head"
 				},
 			}, 
 			["Right Kitty Band Black"] = {
@@ -3643,7 +3643,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 			}, 
 			["Right Kitty Band Pink"] = {
@@ -3662,7 +3662,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Secondary",
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 			}, 
 			["Kitty Panty"] = {
@@ -3681,7 +3681,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Left Kitty Panty Paw"] = {
@@ -3699,7 +3699,7 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(163.00000548362732, 162.00000554323196, 165.00000536441803),
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Left Kitty Panty String"] = {
@@ -3718,7 +3718,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Right Kitty Panty Paw"] = {
@@ -3736,7 +3736,7 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(163.00000548362732, 162.00000554323196, 165.00000536441803),
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Right Kitty Panty String"] = {
@@ -3755,7 +3755,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Kitty Tail"] = {
@@ -3774,7 +3774,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Secondary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Kitty Black Collar"] = {
@@ -3793,7 +3793,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Left Kitty Bra String"] = {
@@ -3812,7 +3812,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Right Kitty Bra String"] = {
@@ -3831,7 +3831,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Kitty Bra Top Whiskers"] = {
@@ -3850,7 +3850,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Secondary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Kitty Bra Middle Whiskers"] = {
@@ -3869,7 +3869,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Secondary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Kitty Bra Bottom Whiskers"] = {
@@ -3888,7 +3888,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Secondary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Kitty Bra Cat"] = {
@@ -3907,7 +3907,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Secondary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Side Skirt"] = {
@@ -3926,7 +3926,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Workwear Shirt"] = {
@@ -3945,9 +3945,9 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "FabricTexture",
+				["Function"] = "FabricTexture"
 			}, 
 			["Left Workwear Arm"] = {
 				["Instance"] = "Mesh",
@@ -3965,9 +3965,9 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Left Arm",
+					[1] = "Left Arm"
 				},
-				["Function"] = "FabricTexture",
+				["Function"] = "FabricTexture"
 			}, 
 			["Right Workwear Arm"] = {
 				["Instance"] = "Mesh",
@@ -3985,9 +3985,9 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Right Arm",
+					[1] = "Right Arm"
 				},
-				["Function"] = "FabricTexture",
+				["Function"] = "FabricTexture"
 			},
 			["Bodysuit"] = {
 				["Instance"] = "Mesh",
@@ -4005,7 +4005,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			},
 			["String Bikini"] = {
@@ -4024,9 +4024,9 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "ToarBreastsOffset",,
+				["Function"] = "ToarBreastsOffset"
 			}, 
 			["Left Cross Tape"] = {
 				["Instance"] = "Mesh",
@@ -4045,7 +4045,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Breast",
+					[2] = "Left Breast"
 				},
 			}, 
 			["Right Cross Tape"] = {
@@ -4065,7 +4065,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Breast",
+					[2] = "Right Breast"
 				},
 			},
 			["Bra 2"] = {
@@ -4084,7 +4084,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Panty 2"] = {
@@ -4103,7 +4103,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			},
 			["Collar"] = {
@@ -4122,7 +4122,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Secondary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Breasts Shirt"] = {
@@ -4140,7 +4140,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Scale"] = "BreastsScale",
 				["AdjustScale"] = {"Size", "CFrame", ["CFrame1"] = 4.5},
@@ -4161,7 +4161,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Scale"] = "BreastsScale",
 				["AdjustScale"] = {"Size", "CFrame", ["CFrame1"] = 4.5},
@@ -4181,7 +4181,7 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Torso Mesh",
+					[2] = "Torso Mesh"
 				},
 				["MeshBasePartTransparency"] = 1,
 				["Function"] = "TorsoShirtTexture",
@@ -4200,10 +4200,10 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Butt",
+					[2] = "Right Butt"
 				},
 				["Scale"] = "ButtsScale",
-				["Function"] = "TorsoShirtTexture",
+				["Function"] = "TorsoShirtTexture"
 			},
 			["Left Butt Shirt Type1"] = {
 				["Instance"] = "Mesh",
@@ -4219,10 +4219,10 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Butt",
+					[2] = "Left Butt"
 				},
 				["Scale"] = "ButtsScale",
-				["Function"] = "TorsoShirtTexture",
+				["Function"] = "TorsoShirtTexture"
 			},
 			["Right Butt Shirt"] = {
 				["Instance"] = "Mesh",
@@ -4244,7 +4244,7 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Butt",
+					[2] = "Right Butt"
 				},
 				["Function"] = "TorsoShirtTexture",
 			},
@@ -4268,7 +4268,7 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Butt",
+					[2] = "Left Butt"
 				},
 				["Function"] = "TorsoShirtTexture",
 			},
@@ -4292,7 +4292,7 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Butt",
+					[2] = "Right Butt"
 				},
 				["Function"] = "TorsoShirtTexture",
 			},
@@ -4316,7 +4316,7 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Butt",
+					[2] = "Left Butt"
 				},
 				["Function"] = "TorsoShirtTexture",
 			},
@@ -4336,7 +4336,7 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Breasts Shirt",
+					[2] = "Breasts Shirt"
 				},
 				["Scale"] = "BreastsScale",
 				["Function"] = "AreolaDecalCreate",
@@ -4357,7 +4357,7 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Breasts Shirt",
+					[2] = "Breasts Shirt"
 				},
 				["Scale"] = "BreastsScale",
 				["Function"] = "AreolaDecalCreate",
@@ -4377,9 +4377,9 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Left Arm",
+					[1] = "Left Arm"
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Sweater Shirt"] = {
 				["Instance"] = "Mesh",
@@ -4397,9 +4397,9 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "SurfaceTexture",
+				["Function"] = "SurfaceTexture"
 			},
 			["Right Sweater Arm"] = {
 				["Instance"] = "Mesh",
@@ -4416,9 +4416,9 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Right Arm",
+					[1] = "Right Arm"
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Left Nipple Piercing 1"] = {
 				["Instance"] = "Mesh",
@@ -4436,7 +4436,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 1"] = {
@@ -4455,7 +4455,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 2"] = {
@@ -4474,7 +4474,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 2"] = {
@@ -4493,7 +4493,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 3"] = {
@@ -4512,7 +4512,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 3"] = {
@@ -4531,7 +4531,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 4"] = {
@@ -4550,7 +4550,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 4"] = {
@@ -4569,7 +4569,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 5"] = {
@@ -4588,7 +4588,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 5"] = {
@@ -4607,7 +4607,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 6"] = {
@@ -4626,7 +4626,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 6"] = {
@@ -4645,7 +4645,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 7"] = {
@@ -4664,7 +4664,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 7"] = {
@@ -4683,7 +4683,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 8"] = {
@@ -4702,7 +4702,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 8"] = {
@@ -4721,7 +4721,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 9"] = {
@@ -4740,7 +4740,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 9"] = {
@@ -4759,7 +4759,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 10"] = {
@@ -4778,7 +4778,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 10"] = {
@@ -4797,7 +4797,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 11"] = {
@@ -4817,7 +4817,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 11"] = {
@@ -4837,7 +4837,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 12"] = {
@@ -4856,7 +4856,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 12"] = {
@@ -4875,7 +4875,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 13"] = {
@@ -4894,7 +4894,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 13"] = {
@@ -4913,7 +4913,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 14"] = {
@@ -4932,7 +4932,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 14"] = {
@@ -4951,7 +4951,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 15"] = {
@@ -4970,7 +4970,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 15"] = {
@@ -4989,7 +4989,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 16"] = {
@@ -5008,7 +5008,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 16"] = {
@@ -5027,7 +5027,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 17"] = {
@@ -5046,7 +5046,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 17"] = {
@@ -5065,7 +5065,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 18"] = {
@@ -5084,7 +5084,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 18"] = {
@@ -5103,7 +5103,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 19"] = {
@@ -5122,7 +5122,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 19"] = {
@@ -5141,7 +5141,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Left Nipple Piercing 20"] = {
@@ -5161,7 +5161,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Left Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Right Nipple Piercing 20"] = {
@@ -5181,7 +5181,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 					[2] = "Right Breast",
-					[3] = "Nipple",
+					[3] = "Nipple"
 				},
 			},
 			["Armor"] = {
@@ -5199,9 +5199,9 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(163.00000548362732, 162.00000554323196, 165.00000536441803),
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "ToarBreastsOffset",
+				["Function"] = "ToarBreastsOffset"
 			},
 			["Maid Left Arm Band"] = {
 				["Instance"] = "Mesh",
@@ -5218,7 +5218,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Left Arm",
+					[1] = "Left Arm"
 				},
 			}, 
 			["Maid Left Arm Band 2"] = {
@@ -5236,7 +5236,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Secondary",
 				["Parent"] = {
-					[1] = "Left Arm",
+					[1] = "Left Arm"
 				},
 			}, 
 			["Maid Leg Band"] = {
@@ -5254,7 +5254,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Secondary",
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 			}, 
 			["Maid Leg Band Bow"] = {
@@ -5272,7 +5272,7 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(163.00000548362732, 162.00000554323196, 165.00000536441803),
 				},
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 			}, 
 			["Maid Right Arm Band 2"] = {
@@ -5290,7 +5290,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Secondary",
 				["Parent"] = {
-					[1] = "Right Arm",
+					[1] = "Right Arm"
 				},
 			}, 
 			["Maid Right Arm Band"] = {
@@ -5308,7 +5308,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Right Arm",
+					[1] = "Right Arm"
 				},
 			},
 			["PussyCumAttacher"] = {
@@ -5343,9 +5343,9 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "PussyC",
+					[2] = "PussyC"
 				},
-				["Function"] = "CumDripDisplay",
+				["Function"] = "CumDripDisplay"
 			}, 
 			["Pussy Cum Trailless"] = {
 				["Instance"] = "Mesh",
@@ -5363,7 +5363,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "PussyC",
+					[2] = "PussyC"
 				}
 			}, 
 			["Torso Cum 1"] = {
@@ -5381,7 +5381,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Torso Cum 2"] = {
@@ -5399,7 +5399,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 			}, 
 			["Right Butt Cum2 1"] = {
@@ -5419,7 +5419,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Butt",
+					[2] = "Right Butt"
 				},
 			}, 
 			["Right Butt Cum2 2"] = {
@@ -5439,7 +5439,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Butt",
+					[2] = "Right Butt"
 				},
 			}, 
 			["Left Butt Cum2 1"] = {
@@ -5479,7 +5479,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Butt",
+					[2] = "Left Butt"
 				},
 			}, 
 			["Left Leg Cum 1"] = {
@@ -5500,7 +5500,7 @@ function RoClothes(Player)
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {["Size"]=1.4, ["CFrame1"]=300},
 				["Parent"] = {
-					[1] = "Left Leg",
+					[1] = "Left Leg"
 				},
 			}, 
 			["Left Leg Cum 2"] = {
@@ -5521,7 +5521,7 @@ function RoClothes(Player)
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {["Size"]=1.4, ["CFrame1"]=300},
 				["Parent"] = {
-					[1] = "Left Leg",
+					[1] = "Left Leg"
 				},
 			}, 
 			["Left Leg Cum 3"] = {
@@ -5542,7 +5542,7 @@ function RoClothes(Player)
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {["Size"]=1.4, ["CFrame1"]=300},
 				["Parent"] = {
-					[1] = "Left Leg",
+					[1] = "Left Leg"
 				},
 			}, 
 			["Left Leg Cum 4"] = {
@@ -5563,7 +5563,7 @@ function RoClothes(Player)
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {["Size"]=1.4, ["CFrame1"]=300},
 				["Parent"] = {
-					[1] = "Left Leg",
+					[1] = "Left Leg"
 				},
 			}, 
 			["Right Leg Cum 1"] = {
@@ -5584,7 +5584,7 @@ function RoClothes(Player)
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {["Size"]=1.4, ["CFrame1"]=300},
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 			}, 
 			["Right Leg Cum 2"] = {
@@ -5605,7 +5605,7 @@ function RoClothes(Player)
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {["Size"]=1.4, ["CFrame1"]=300},
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 			}, 
 			["Right Leg Cum 3"] = {
@@ -5626,7 +5626,7 @@ function RoClothes(Player)
 				["Scale"] = "LegsScale",
 				["AdjustScale"] = {["Size"]=1.4, ["CFrame1"]=300},
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 			}, 
 			["Right Arm Cum 1"] = {
@@ -5644,7 +5644,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Right Arm",
+					[1] = "Right Arm"
 				},
 			}, 
 			["Right Arm Cum 2"] = {
@@ -5662,7 +5662,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Right Arm",
+					[1] = "Right Arm"
 				},
 			}, 
 			["Left Arm Cum 1"] = {
@@ -5680,7 +5680,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Left Arm",
+					[1] = "Left Arm"
 				},
 			}, 
 			["Left Arm Cum 2"] = {
@@ -5698,7 +5698,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Left Arm",
+					[1] = "Left Arm"
 				},
 			}, 
 			["Face Cum 2"] = {
@@ -5716,7 +5716,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Head",
+					[1] = "Head"
 				},
 			}, 
 			["Face Cum 3"] = {
@@ -5734,7 +5734,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Head",
+					[1] = "Head"
 				},
 			}, 
 			["Face Cum 4"] = {
@@ -5752,7 +5752,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Head",
+					[1] = "Head"
 				},
 			}, 
 			["Face Cum 5"] = {
@@ -5770,7 +5770,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Head",
+					[1] = "Head"
 				},
 			}, 
 			["Face Cum 6"] = {
@@ -5788,7 +5788,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Head",
+					[1] = "Head"
 				},
 			}, 
 			["Face Cum 7"] = {
@@ -5806,7 +5806,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Head",
+					[1] = "Head"
 				},
 			}, 
 			["Face Cum 1"] = {
@@ -5824,7 +5824,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Head",
+					[1] = "Head"
 				},
 			},
 			["Left Breast Cum"] = {
@@ -5844,9 +5844,9 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Breast",
+					[2] = "Left Breast"
 				},
-				["Function"] = "CumBreastTypeSupport",
+				["Function"] = "CumBreastTypeSupport"
 			}, 
 			["Right Breast Cum"] = {
 				["Instance"] = "Mesh",
@@ -5865,9 +5865,9 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Breast",
+					[2] = "Right Breast"
 				},
-				["Function"] = "CumBreastTypeSupport",
+				["Function"] = "CumBreastTypeSupport"
 			},
 			["Left Breast Cum Type2"] = {
 				["Instance"] = "Mesh",
@@ -5886,9 +5886,9 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Breast",
+					[2] = "Left Breast"
 				},
-				["Function"] = "CumBreastTypeSupport2",
+				["Function"] = "CumBreastTypeSupport2"
 			}, 
 			["Right Breast Cum Type2"] = {
 				["Instance"] = "Mesh",
@@ -5907,9 +5907,9 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Breast",
+					[2] = "Right Breast"
 				},
-				["Function"] = "CumBreastTypeSupport2",
+				["Function"] = "CumBreastTypeSupport2"
 			}, 
 			["Face Cum Type2"] = {
 				["Instance"] = "Mesh",
@@ -5926,7 +5926,7 @@ function RoClothes(Player)
 				},
 				["Recolor"] = "Primary",
 				["Parent"] = {
-					[1] = "Head",
+					[1] = "Head"
 				},
 			},
 			["Left Butt Cum 1"] = {
@@ -5946,7 +5946,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Butt",
+					[2] = "Left Butt"
 				},
 			}, 
 			["Left Butt Cum 2"] = {
@@ -5966,7 +5966,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Butt",
+					[2] = "Left Butt"
 				},
 			}, 
 			["Left Butt Cum 3"] = {
@@ -5986,7 +5986,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Butt",
+					[2] = "Left Butt"
 				},
 			}, 
 			["Left Butt Cum 4"] = {
@@ -6006,7 +6006,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Butt",
+					[2] = "Left Butt"
 				},
 			}, 
 			["Right Butt Cum 2"] = {
@@ -6026,7 +6026,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Butt",
+					[2] = "Right Butt"
 				},
 			}, 
 			["Right Butt Cum 3"] = {
@@ -6046,7 +6046,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Butt",
+					[2] = "Right Butt"
 				},
 			}, 
 			["Right Butt Cum 4"] = {
@@ -6066,7 +6066,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Butt",
+					[2] = "Right Butt"
 				},
 			}, 
 			["Right Butt Cum 1"] = {
@@ -6086,7 +6086,7 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Butt",
+					[2] = "Right Butt"
 				},
 			},
 			["RightArm2 Cum 1"] = {
@@ -6402,7 +6402,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Right Jacket Arm"] = {
 				["Instance"] = "Mesh",
@@ -6422,7 +6422,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Right Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Left Jacket Arm"] = {
 				["Instance"] = "Mesh",
@@ -6442,7 +6442,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Left Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Left Jacket Arm 2"] = {
 				["Instance"] = "Mesh",
@@ -6463,7 +6463,7 @@ function RoClothes(Player)
 					[1] = "Left Arm",
 					[2] = "Left Jacket Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Right Jacket Arm 2"] = {
 				["Instance"] = "Mesh",
@@ -6484,7 +6484,7 @@ function RoClothes(Player)
 					[1] = "Right Arm",
 					[2] = "Right Jacket Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Dress 2"] = {
 				["Instance"] = "Mesh",
@@ -6523,7 +6523,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Scarf"] = {
 				["Instance"] = "Mesh",
@@ -6562,7 +6562,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Left Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Right Off Shoulder Hoodie Arm"] = {
 				["Instance"] = "Mesh",
@@ -6582,7 +6582,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Right Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Left Off Shoulder Hoodie Arm 2"] = {
 				["Instance"] = "Mesh",
@@ -6603,7 +6603,7 @@ function RoClothes(Player)
 					[1] = "Left Arm",
 					[2] = "Left Off Shoulder Hoodie Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Right Off Shoulder Hoodie Arm 2"] = {
 				["Instance"] = "Mesh",
@@ -6624,7 +6624,7 @@ function RoClothes(Player)
 					[1] = "Right Arm",
 					[2] = "Right Off Shoulder Hoodie Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Right Shoe 2"] = {
 				["Instance"] = "Mesh",
@@ -7567,7 +7567,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Right Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Left Glove"] = {
 				["Instance"] = "Mesh",
@@ -7587,7 +7587,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Left Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Tanktop"] = {
 				["Instance"] = "Mesh",
@@ -7626,7 +7626,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Uncover Hoodie Hoodie"] = {
 				["Instance"] = "Mesh",
@@ -7646,7 +7646,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Uncover Hoodie Ropes"] = {
 				["Instance"] = "Mesh",
@@ -7666,7 +7666,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Uncover Hoodie Shirt"] = {
 				["Instance"] = "Mesh",
@@ -7686,7 +7686,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Uncover Hoodie Right Arm"] = {
 				["Instance"] = "Mesh",
@@ -7706,7 +7706,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Right Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Uncover Hoodie Left Arm"] = {
 				["Instance"] = "Mesh",
@@ -7726,7 +7726,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Left Arm",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			},
 			["Yoru Bra"] = {
 				["Instance"] = "Mesh",
@@ -8292,10 +8292,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "NewWomanTorsoShirtClothing",
+				["Function"] = "NewWomanTorsoShirtClothing"
 			},
 			["NewWomanTorsoPants"] = {
 				["Instance"] = "Mesh",
@@ -8310,10 +8310,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "NewWomanTorsoPantsClothing",
+				["Function"] = "NewWomanTorsoPantsClothing"
 			},
 			["NewWomanLeftLeg"] = {
 				["Instance"] = "Mesh",
@@ -8328,10 +8328,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Left Leg",
+					[1] = "Left Leg"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "NewWomanPantsClothing",
+				["Function"] = "NewWomanPantsClothing"
 			},
 			["NewWomanRightLeg"] = {
 				["Instance"] = "Mesh",
@@ -8346,10 +8346,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Right Leg",
+					[1] = "Right Leg"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "NewWomanPantsClothing",
+				["Function"] = "NewWomanPantsClothing"
 			},
 			["NewWomanRightArm"] = {
 				["Instance"] = "Part",
@@ -8363,10 +8363,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Right Arm",
+					[1] = "Right Arm"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "NewWomanShirtClothing",
+				["Function"] = "NewWomanShirtClothing"
 			},
 			["NewWomanLeftArm"] = {
 				["Instance"] = "Part",
@@ -8380,10 +8380,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Left Arm",
+					[1] = "Left Arm"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "NewWomanShirtClothing",
+				["Function"] = "NewWomanShirtClothing"
 			},
 			["NewWomanBreastShirt"] = {
 				["Instance"] = "Mesh",
@@ -8398,10 +8398,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "NewWomanBreastShirtClothing",
+				["Function"] = "NewWomanBreastShirtClothing"
 			},
 			["NewWomanBreastPants"] = {
 				["Instance"] = "Mesh",
@@ -8416,10 +8416,10 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["ParentTransparency"] = 1,
-				["Function"] = "NewWomanBreastPantsClothing",
+				["Function"] = "NewWomanBreastPantsClothing"
 			},
 			["Croptop Neck"] = {
 				["Instance"] = "Mesh",
@@ -8438,7 +8438,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Croptop"] = {
 				["Instance"] = "Mesh",
@@ -8457,7 +8457,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Lift Croptop"] = {
 				["Instance"] = "Mesh",
@@ -8476,7 +8476,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "TurtleTexture",
+				["Function"] = "TurtleTexture"
 			}, 
 			["Cloth Bra"] = {
 				["Instance"] = "Mesh",
@@ -8605,7 +8605,7 @@ function RoClothes(Player)
 				["Parent"] = {
 					[1] = "Torso",
 				},
-				["Function"] = "VibratorStrings",
+				["Function"] = "VibratorStrings"
 			}, 
 			["Left Vibrator Bullet"] = {
 				["Instance"] = "Mesh",
@@ -8726,9 +8726,9 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(0, 0, 0),
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "OilUp",
+				["Function"] = "OilUp"
 			}, 
 			["theOilerFunction2"] = {
 				["Instance"] = "Part",
@@ -8743,9 +8743,9 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(0, 0, 0),
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "OilUp2",
+				["Function"] = "OilUp2"
 			}, 
 			["theOilerFunction3"] = {
 				["Instance"] = "Part",
@@ -8760,9 +8760,9 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(0, 0, 0),
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "OilUp3",
+				["Function"] = "OilUp3"
 			}, 
 			["theOilerFunctionOld"] = {
 				["Instance"] = "Part",
@@ -8777,9 +8777,9 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(0, 0, 0),
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "OilUpOld",
+				["Function"] = "OilUpOld"
 			}, 
 			["RBreastFreckles"] = {
 				["Instance"] = "Part",
@@ -8795,9 +8795,9 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Breast",
+					[2] = "Right Breast"
 				},
-				["Function"] = "addFreckles",
+				["Function"] = "addFreckles"
 			},
 			["LBreastFreckles"] = {
 				["Instance"] = "Part",
@@ -8813,9 +8813,9 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Breast",
+					[2] = "Left Breast"
 				},
-				["Function"] = "addFreckles",
+				["Function"] = "addFreckles"
 			},
 			["RButtFreckles"] = {
 				["Instance"] = "Part",
@@ -8831,9 +8831,9 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Butt",
+					[2] = "Right Butt"
 				},
-				["Function"] = "addFreckles",
+				["Function"] = "addFreckles"
 			},
 			["LButtFreckles"] = {
 				["Instance"] = "Part",
@@ -8849,9 +8849,9 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Butt",
+					[2] = "Left Butt"
 				},
-				["Function"] = "addFreckles",
+				["Function"] = "addFreckles"
 			},
 			["RBreastFreckles2"] = {
 				["Instance"] = "Part",
@@ -8867,9 +8867,9 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Breast",
+					[2] = "Right Breast"
 				},
-				["Function"] = "addFreckles2",
+				["Function"] = "addFreckles2"
 			},
 			["LBreastFreckles2"] = {
 				["Instance"] = "Part",
@@ -8885,9 +8885,9 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Breast",
+					[2] = "Left Breast"
 				},
-				["Function"] = "addFreckles2",
+				["Function"] = "addFreckles2"
 			},
 			["RButtFreckles2"] = {
 				["Instance"] = "Part",
@@ -8903,9 +8903,9 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Butt",
+					[2] = "Right Butt"
 				},
-				["Function"] = "addFreckles2",
+				["Function"] = "addFreckles2"
 			},
 			["LButtFreckles2"] = {
 				["Instance"] = "Part",
@@ -8921,9 +8921,9 @@ function RoClothes(Player)
 				},
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Butt",
+					[2] = "Left Butt"
 				},
-				["Function"] = "addFreckles2",
+				["Function"] = "addFreckles2"
 			},
 			["RBreastFrecklesC"] = {
 				["Instance"] = "Part",
@@ -8940,9 +8940,9 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Breast",
+					[2] = "Right Breast"
 				},
-				["Function"] = "addFrecklesC",
+				["Function"] = "addFrecklesC"
 			},
 			["LBreastFrecklesC"] = {
 				["Instance"] = "Part",
@@ -8959,9 +8959,9 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Breast",
+					[2] = "Left Breast"
 				},
-				["Function"] = "addFrecklesC",
+				["Function"] = "addFrecklesC"
 			},
 			["RButtFrecklesC"] = {
 				["Instance"] = "Part",
@@ -8978,9 +8978,9 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Right Butt",
+					[2] = "Right Butt"
 				},
-				["Function"] = "addFrecklesC",
+				["Function"] = "addFrecklesC"
 			},
 			["LButtFrecklesC"] = {
 				["Instance"] = "Part",
@@ -8997,9 +8997,9 @@ function RoClothes(Player)
 				["Recolor"] = "Primary",
 				["Parent"] = {
 					[1] = "Torso",
-					[2] = "Left Butt",
+					[2] = "Left Butt"
 				},
-				["Function"] = "addFrecklesC",
+				["Function"] = "addFrecklesC"
 			},
 			["nippleCensorBar"] = {
 				["Instance"] = "Part",
@@ -9014,9 +9014,9 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(0, 0, 0),
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "nippleCensor",
+				["Function"] = "nippleCensor"
 			}, 
 			["leftheel"] = {
 				["Instance"] = "Mesh",
@@ -9145,9 +9145,9 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(0, 0, 0),
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "HideBreastPants",
+				["Function"] = "HideBreastPants"
 			},
 			["HideBreastShirtFunction"] = {
 				["Instance"] = "Part",
@@ -9162,9 +9162,9 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(0, 0, 0),
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "HideBreastShirt",
+				["Function"] = "HideBreastShirt"
 			},
 			["Bulge"] = {
 				["Instance"] = "Mesh",
@@ -9180,7 +9180,7 @@ function RoClothes(Player)
 					["Color"] = "Parent"
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
 				["Function"] = "PantsTexture",
 				["Scale"] = "CockScale",
@@ -9249,7 +9249,7 @@ function RoClothes(Player)
 					[2] = "Breasts Shirt",
 				},
 				["Scale"] = "BreastsScale",
-				["Function"] = "AreolaDecalUVCreate",
+				["Function"] = "AreolaDecalUVCreate"
 			}, 
 			["RBreastUV"] = {
 				["Instance"] = "Mesh",
@@ -9269,7 +9269,7 @@ function RoClothes(Player)
 					[2] = "Breasts Shirt",
 				},
 				["Scale"] = "BreastsScale",
-				["Function"] = "AreolaDecalUVCreate",
+				["Function"] = "AreolaDecalUVCreate"
 			}, 
 			["UVNippleL"] = {
 				["Instance"] = "Mesh",
@@ -9291,7 +9291,7 @@ function RoClothes(Player)
 					[3] = "LBreastUV",
 				},
 				["Function"] = "DarkPart",
-				["Scale"] = "BreastsScale",
+				["Scale"] = "BreastsScale"
 			}, 
 			["UVNippleR"] = {
 				["Instance"] = "Mesh",
@@ -9313,7 +9313,7 @@ function RoClothes(Player)
 					[3] = "RBreastUV",
 				},
 				["Function"] = "DarkPart",
-				["Scale"] = "BreastsScale",
+				["Scale"] = "BreastsScale"
 			}, 
 
 			["Breasts Shirt 3"] = {
@@ -9375,7 +9375,7 @@ function RoClothes(Player)
 					[2] = "Breasts Shirt",
 				},
 				["Scale"] = "BreastsScale",
-				["Function"] = "AreolaDecalUVCreate",
+				["Function"] = "AreolaDecalUVCreate"
 			}, 
 			["RBreastUV3"] = {
 				["Instance"] = "Mesh",
@@ -9394,7 +9394,7 @@ function RoClothes(Player)
 					[2] = "Breasts Shirt",
 				},
 				["Scale"] = "BreastsScale",
-				["Function"] = "AreolaDecalUVCreate",
+				["Function"] = "AreolaDecalUVCreate"
 			}, 
 
 			["HorseBall"] = {
@@ -9453,9 +9453,9 @@ function RoClothes(Player)
 					["Color"] = Color3.fromRGB(0, 0, 0),
 				},
 				["Parent"] = {
-					[1] = "Torso",
+					[1] = "Torso"
 				},
-				["Function"] = "twitchEffect",
+				["Function"] = "twitchEffect"
 			}, 
 		}
 	end
@@ -9517,7 +9517,7 @@ function RoClothes(Player)
 		["RightArmColor3"] = "Right Arm",
 		["LeftLegColor3"] ="Left Leg",
 		["RightLegColor3"] = "Right Leg",
-		["TorsoColor3"] = "Torso",
+		["TorsoColor3"] = "Torso"
 	}
 
 	local BodyPartSize = {
@@ -9626,7 +9626,7 @@ function RoClothes(Player)
 				7097787052,
 				7335390462,
 				8923597159,
-				6310032618,
+				6310032618
 			},
 			["Clothing"] = {
 				"Croptop",
@@ -9635,7 +9635,7 @@ function RoClothes(Player)
 				"Shoe 3",
 				"Sock 2",
 				"Skirt 2",
-				"Glove",
+				"Glove"
 			}
 		},
 		["Mimi"] = {
@@ -9650,7 +9650,7 @@ function RoClothes(Player)
 			["Accessory"] = {
 				82879052599298,
 				109188815319909,
-				17590602534,
+				17590602534
 			},
 			["TailAccessory"] = {73567120581664},
 			["Clothes"] = {
@@ -9663,128 +9663,6 @@ function RoClothes(Player)
 				"Roblox Butt Shirt",
 				"Roblox Pants",
 			},
-		},
-		["chara"] = {
-			["Body Color"] = {
-                ["HeadColor3"] = Color3.fromRGB(233, 183, 138),
-				["LeftArmColor3"] = Color3.fromRGB(233, 183, 138),
-				["RightArmColor3"] = Color3.fromRGB(233, 183, 138),
-				["LeftLegColor3"] = Color3.fromRGB(233, 183, 138),
-				["RightLegColor3"] = Color3.fromRGB(233, 183, 138),
-				["TorsoColor3"] = Color3.fromRGB(233, 183, 138),
-			},
-			["Accessory"] = {
-                85520670280869,
-                119562681468957,
-                71595727142290,
-                16392025861,
-                16199914545,
-			},
-			["Clothes"] = {
-				["Shirt"] = 134703381508848,
-				["Pants"] = 82014951301565,
-			},
-			["Clothing"] = {
-				"Roblox Breasts Clothing",
-				"Roblox Shirt",
-				"Roblox Pants",
-				"Roblox Butt Shirt Method2",
-				"Pussy Closed",
-			},
-			["Preset"] = {
-				Tone = "Use NippleColor",
-				Face = false,
-				AccessorySizeLock = true,
-				BodyPartPhysics = true,
-				PhysicsObeyGravity = true,
-				RealtimeBodyTransparency = false,
-				PositionPhysicsMultiply = 5,
-				RotationPhysicsMultiply = 5,
-				BreastsScale = 1.2,
-				ButtsScale = 1.2,
-				LegsScale = 1.2,
-				BreastsType = 3,
-				TorsoType = 2,
-				ArmType = 2,
-				LegsType = 2,
-				ButtType = 3,
-				HardcoreHP = true,
-                TopHP = 25,
-                BottomHP = 25,
-                DamageSFX = 5,
-                Volume = 2.5,
-				PussyScale = 1.5,
-			},
-			["Recolor"] = {
-					["Pussy Closed"] = {
-						["Primary"] = Color3.fromRGB(187, 119, 119),
-			},
-		},
-			["NippleColor"] = Color3.fromRGB(187, 119, 119),
-		},
-		["leviathan"] = {
-			["Body Color"] = {
-                ["HeadColor3"] = Color3.fromRGB(222, 204, 156),
-                ["LeftArmColor3"] = Color3.fromRGB(222, 204, 156),
-                ["RightArmColor3"] = Color3.fromRGB(222, 204, 156),
-                ["LeftLegColor3"] = Color3.fromRGB(222, 204, 156),
-                ["RightLegColor3"] = Color3.fromRGB(222, 204, 156),
-				["TorsoColor3"] = Color3.fromRGB(255, 255, 255),
-			},
-			["Accessory"] = {
-			    18526523969,
-			    18526564537,
-			    74151771326994,
-			    12927374623,
-			    15433858429,
-			    92645609590509,
-			    139733180888096,
-			},
-			["Clothes"] = {
-				["Shirt"] = 105423040362824,
-				["Pants"] = 10013988660,
-		    },
-		    ["TClothes"] = {
-				["Shirt"] = 8912762012,
-				["Pants"] = 10013988660,
-			},
-			["Clothing"] = {
-				"Roblox Breasts Clothing",
-				"Roblox Shirt",
-				"Roblox Pants",
-				"Roblox Butt Shirt Method2",
-				"Pussy Closed",
-			},
-			["Preset"] = {
-				Tone = "Use NippleColor",
-				Face = false,
-				AccessorySizeLock = true,
-				BodyPartPhysics = true,
-				PhysicsObeyGravity = true,
-				RealtimeBodyTransparency = false,
-				PositionPhysicsMultiply = 5,
-				RotationPhysicsMultiply = 5,
-				BreastsScale = 1.3,
-				ButtsScale = 1.3,
-				LegsScale = 1.2,
-				BreastsType = 1,
-				TorsoType = 3,
-				ArmType = 2,
-				LegsType = 2,
-				ButtType = 3,
-				HardcoreHP = true,
-                TopHP = 25,
-                BottomHP = 25,
-                DamageSFX = 5,
-                Volume = 2.5,
-				PussyScale = 1.4,
-			},
-			["Recolor"] = {
-					["Pussy Closed"] = {
-						["Primary"] = Color3.fromRGB(255, 216, 216),
-			},
-		},
-			["NippleColor"] = Color3.fromRGB(255, 216, 216),
 		},
 		["Datax"] = {
 			["NippleColor"] = Color3.fromRGB(0, 255, 0),
@@ -9803,7 +9681,7 @@ function RoClothes(Player)
 				140493354533597,
 				7491680980,
 				106067586439689,
-				83144929901095,
+				83144929901095
 			},
 			["Clothes"] = {
 				["Shirt"] = 6352152945,
@@ -9814,7 +9692,7 @@ function RoClothes(Player)
 				"Roblox Butt Shirt",
 				"Roblox Pants",
 				"Sock 2",
-				"Bodyless Clothes",
+				"Bodyless Clothes"
 			},
 			["Recolor"] = {
 				["Sock 2"] = {
@@ -9864,65 +9742,6 @@ function RoClothes(Player)
 				LegsType = 3
 			},
 		},
-		["Meanie"] = {
-			["Body Color"] = {
-				["HeadColor3"] = Color3.fromRGB(255, 255, 255),
-				["LeftArmColor3"] = Color3.fromRGB(255, 255, 255),
-				["RightArmColor3"] = Color3.fromRGB(255, 255, 255),
-				["LeftLegColor3"] = Color3.fromRGB(255, 255, 255),
-				["RightLegColor3"] = Color3.fromRGB(255, 255, 255),
-				["TorsoColor3"] = Color3.fromRGB(255, 255, 255),
-			},
-			["Accessory"] = {
-			    10395349961,
-			    114818441110696,
-			},
-			["Clothes"] = {
-				["Shirt"] = 127325011004766,
-				["Pants"] = 15145770147,
-		    },
-		    ["TClothes"] = {
-				["Shirt"] = 15145759651,
-				["Pants"] = 15145770147,
-			},
-			["Clothing"] = {
-				"Roblox Breasts Clothing",
-				"Roblox Shirt",
-				"Roblox Pants",
-				"Roblox Butt Shirt Method2",
-				"Pussy Closed",
-			},
-			["Preset"] = {
-				Tone = "Use NippleColor",
-				Face = false,
-				AccessorySizeLock = true,
-				BodyPartPhysics = true,
-				PhysicsObeyGravity = true,
-				RealtimeBodyTransparency = false,
-				PositionPhysicsMultiply = 5,
-				RotationPhysicsMultiply = 5,
-				BreastsScale = 1.3,
-				ButtsScale = 1.3,
-				LegsScale = 1.2,
-				BreastsType = 1,
-				TorsoType = 3,
-				ArmType = 2,
-				LegsType = 2,
-				ButtType = 3,
-				HardcoreHP = true,
-                TopHP = 25,
-                BottomHP = 25,
-                DamageSFX = 5,
-                Volume = 2.5,
-				PussyScale = 1.5,
-			},
-			["Recolor"] = {
-					["Pussy Closed"] = {
-						["Primary"] = Color3.fromRGB(255, 216, 216),
-			},
-		},
-			["NippleColor"] = Color3.fromRGB(255, 216, 216),
-		},
 		-- Clothing Bundles --
 		["Roblox Clothing"] = {
 			["Clothing"] = {
@@ -9946,17 +9765,17 @@ function RoClothes(Player)
 				"Birdly Dress",
 				"Birdly Backpack",
 				"Birdly Bottom Dress",
-				"Birdly Sleeves",
+				"Birdly Sleeves"
 			},
 			["ClothingBundle"] = true
 		},
 		["Cow Bikini"] = {
 			["Clothing"] = {
 				"Cow Bra",
-				"Cow Panty",
+				"Cow Panty"
 			},
 			["Preset"] = {
-				BreastsScale = 1,
+				BreastsScale = 1
 			},
 			["ClothingBundle"] = true
 		},
@@ -9965,10 +9784,10 @@ function RoClothes(Player)
 				"Kitty Bra",
 				"Kitty Panty",
 				"Kitty Band",
-				"Kitty Aspects",
+				"Kitty Aspects"
 			},
 			["Preset"] = {
-				BreastsScale = 1,
+				BreastsScale = 1
 			},
 			["ClothingBundle"] = true
 		},
@@ -9978,11 +9797,11 @@ function RoClothes(Player)
 				"Collar w/ Bow",
 				"Bunny Bands",
 				"Bunny Aspects",
-				"Fishnet Stockings",
+				"Fishnet Stockings"
 			},
 			["Preset"] = {
 				BreastsScale = 1,
-				ButtsScale = 1,
+				ButtsScale = 1
 			},
 			["ClothingBundle"] = true
 		},
@@ -10034,7 +9853,7 @@ function RoClothes(Player)
 					["Torso"] = true,
 					["Right Leg"] = true,
 					["Left Leg"] = true,
-					["Hat"] = true,
+					["Hat"] = true
 				}
 			},
 			["IsPreset"] = true
@@ -10050,7 +9869,7 @@ function RoClothes(Player)
 					["Torso"] = true,
 					["Right Leg"] = true,
 					["Left Leg"] = true,
-					["Hat"] = true,
+					["Hat"] = true
 				}
 			},
 			["IsPreset"] = true
@@ -10064,7 +9883,7 @@ function RoClothes(Player)
 					["Torso"] = true,
 					["Right Leg"] = true,
 					["Left Leg"] = true,
-					["Hat"] = true,
+					["Hat"] = true
 				}
 			},
 			["IsPreset"] = true
@@ -10087,7 +9906,7 @@ function RoClothes(Player)
 			["Preset"] = {
 				TorsoType = 3,
 				ArmType = 2,
-				LegsType = 3,
+				LegsType = 3
 			},
 			["IsPreset"] = true
 		},
@@ -10095,14 +9914,14 @@ function RoClothes(Player)
 			["Preset"] = {
 				TorsoType = 5,
 				ArmType = 3,
-				LegsType = 4,
+				LegsType = 4
 			},
 			["IsPreset"] = true
 		},
 		["[PRESET] Buff Body Type"] = {
 			["Preset"] = {
 				TorsoType = 6,
-				ArmType = 4,
+				ArmType = 4
 			},
 			["IsPreset"] = true
 		},
@@ -10110,7 +9929,7 @@ function RoClothes(Player)
 			["Preset"] = {
 				TorsoType = 5,
 				ArmType = 3,
-				LegsType = 4,
+				LegsType = 4
 			},
 			["Clothing"] = {
 				"Cock",
@@ -10123,7 +9942,7 @@ function RoClothes(Player)
 				ButtsScale = 1.3,
 				LegsScale = 1.2,
 				ButtType = 3,
-				LegsType = 2,
+				LegsType = 2
 			},
 			["IsPreset"] = true
 		},
@@ -10140,7 +9959,7 @@ function RoClothes(Player)
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			}
 		},
 		["Skirt 1"] = {
@@ -10160,7 +9979,7 @@ function RoClothes(Player)
 		},
 		["Panty"] = {
 			["Weld"] = {
-				[1] = "Panty",
+				[1] = "Panty"
 			}
 		},
 		["Bodyless Clothes"] = {
@@ -10180,7 +9999,7 @@ function RoClothes(Player)
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			}
 		},
 		["Birdly Dress"] = {
@@ -10189,7 +10008,7 @@ function RoClothes(Player)
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			}
 		},
 		["Birdly Backpack"] = {
@@ -10223,12 +10042,12 @@ function RoClothes(Player)
 		},
 		["Apron"] = {
 			["Weld"] = {
-				[1] = "Apron 1",
+				[1] = "Apron 1"
 			}
 		},
 		["Apron 2"] = {
 			["Weld"] = {
-				[1] = "Apron 2",
+				[1] = "Apron 2"
 			}
 		},
 		["Killer Sweater"] = {
@@ -10244,7 +10063,7 @@ function RoClothes(Player)
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			}
 		},
 		["Cow Panty"] = {
@@ -10264,7 +10083,7 @@ function RoClothes(Player)
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			}
 		},
 		["Bunny Bands"] = {
@@ -10292,7 +10111,7 @@ function RoClothes(Player)
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			}
 		},
 		["Kitty Aspects"] = {
@@ -10324,7 +10143,7 @@ function RoClothes(Player)
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			},
 		},
 		["Side Skirt"] = {
@@ -10338,7 +10157,7 @@ function RoClothes(Player)
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			},
 		},
 		["String Bikini"] = {
@@ -10347,7 +10166,7 @@ function RoClothes(Player)
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			}
 		},
 		["Bra 2"] = {
@@ -10356,7 +10175,7 @@ function RoClothes(Player)
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			}
 		},
 		["Panty 2"] = {
@@ -10369,7 +10188,7 @@ function RoClothes(Player)
 				[1] = "Breasts Pants",
 				[2] = "Breasts Shirt",
 				[3] = "Left Breast 2",
-				[4] = "Right Breast 2",
+				[4] = "Right Breast 2"
 			},
 			["Unvisible"] = {
 				"Left Nipple",
@@ -10387,7 +10206,7 @@ function RoClothes(Player)
 				[3] = "LBreastUV",
 				[4] = "RBreastUV",
 				[5] = "UVNippleL",
-				[6] = "UVNippleR",
+				[6] = "UVNippleR"
 			},
 			["Unvisible"] = {
 				"Left Nipple",
@@ -10405,7 +10224,7 @@ function RoClothes(Player)
 				[3] = "LBreastUV3",
 				[4] = "RBreastUV3",
 				[5] = "UVNippleL",
-				[6] = "UVNippleR",
+				[6] = "UVNippleR"
 			},
 			["Unvisible"] = {
 				"Left Nipple",
@@ -10418,12 +10237,12 @@ function RoClothes(Player)
 		},
 		["Hide Breast Pants"] = {
 			["Weld"] = {
-				[1] = "HideBreastPantsFunction",
+				[1] = "HideBreastPantsFunction"
 			},
 		},
 		["Hide Breast Shirt"] = {
 			["Weld"] = {
-				[1] = "HideBreastShirtFunction",
+				[1] = "HideBreastShirtFunction"
 			},
 		},
 		["Roblox Shirt"] = {
@@ -10458,13 +10277,13 @@ function RoClothes(Player)
 			["Weld"] = {
 			},
 			["HP"] = 2,
-			["HPFunction"] = "BottomLayer",
+			["HPFunction"] = "BottomLayer"
 		},
 		["Sweater"] = {
 			["Weld"] = {
 				[1] = "Sweater Shirt",
 				[2] = "Left Sweater Arm",
-				[3] = "Right Sweater Arm",
+				[3] = "Right Sweater Arm"
 			},
 			["Unvisible"] = {
 				"Left Nipple",
@@ -10765,7 +10584,7 @@ function RoClothes(Player)
 		},
 		["Scarf"] = {
 			["Weld"] = {
-				[1] = "Scarf",
+				[1] = "Scarf"
 			}
 		},
 		["Off Shoulder Hoodie"] = {
@@ -10993,7 +10812,7 @@ function RoClothes(Player)
 		["New Woman Breast"] = {
 			["Weld"] = {
 				[1] = "NewWomanBreastShirt",
-				[2] = "NewWomanBreastPants",
+				[2] = "NewWomanBreastPants"
 			},
 			["Unvisible"] = {
 				"Left Nipple",
@@ -11023,7 +10842,7 @@ function RoClothes(Player)
 		["Pussy Cum"] = {
 			["Weld"] = {
 				[1] = "PussyCumAttacher",
-				[2] = "Pussy Cum",
+				[2] = "Pussy Cum"
 			},
 			["HPFunction"] = "HPPussyCum",
 			["HP"] = 4,
@@ -11031,24 +10850,24 @@ function RoClothes(Player)
 		["Pussy Cum w/o Trail"] = {
 			["Weld"] = {
 				[1] = "PussyCumAttacher",
-				[2] = "Pussy Cum Trailless",
+				[2] = "Pussy Cum Trailless"
 			},
 			["HP"] = 4,
 		},
 		["Buttplug"] = {
 			["Weld"] = {
 				[1] = "Buttplug",
-				[2] = "ButtplugGem",
+				[2] = "ButtplugGem"
 			}
 		},
 		["Croptop"] = {
 			["Weld"] = {
 				[1] = "Croptop",
-				[2] = "Croptop Neck",
+				[2] = "Croptop Neck"
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			}
 		},
 		["Uncover Croptop"] = {
@@ -11063,50 +10882,50 @@ function RoClothes(Player)
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			}
 		},
 		["Uncover Croptop w/o Neck"] = {
 			["Weld"] = {
-				[1] = "Lift Croptop",
+				[1] = "Lift Croptop"
 			}
 		},
 		["Cloth Bra"] = {
 			["Weld"] = {
-				[1] = "Cloth Bra",
+				[1] = "Cloth Bra"
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			}
 		},
 		["Cropped Sweater"] = {
 			["Weld"] = {
 				[1] = "Crop Sweater",
 				[2] = "Sweater Left Arm",
-				[3] = "Sweater Right Arm",
+				[3] = "Sweater Right Arm"
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			}
 		},
 		["Cropped Sweater 2"] = {
 			["Weld"] = {
 				[1] = "Crop Sweater 2",
 				[2] = "Sweater Left Arm",
-				[3] = "Sweater Right Arm",
+				[3] = "Sweater Right Arm"
 			},
 			["Unvisible"] = {
 				"Left Nipple",
-				"Right Nipple",
+				"Right Nipple"
 			}
 		},
 		["Cropped Uncover Sweater"] = {
 			["Weld"] = {
 				[1] = "Uncovered Crop Sweater",
 				[2] = "Sweater Left Arm",
-				[3] = "Sweater Right Arm",
+				[3] = "Sweater Right Arm"
 			}
 		},
 		["Nipple Vibrators"] = {
@@ -11114,17 +10933,17 @@ function RoClothes(Player)
 				[1] = "Left Vibrator Bullet",
 				[2] = "Right Vibrator Bullet",
 				[3] = "Vibrator Buttons",
-				[4] = "Vibrator Tape",
+				[4] = "Vibrator Tape"
 			},
 			["HP"] = 3,
 		},
 		["Lactation"] = {
 			["Weld"] = {
 				[1] = "Left Nipple Lactation",
-				[2] = "Right Nipple Lactation",
+				[2] = "Right Nipple Lactation"
 			},
 			["HP"] = 3,
-			["HPFunction"] = "HPLactation",
+			["HPFunction"] = "HPLactation"
 		},
 		["Fishnet Stockings"] = {
 			["Weld"] = {
@@ -11198,7 +11017,7 @@ function RoClothes(Player)
 		},
 		["Nipple Censor Bar"] = {
 			["Weld"] = {
-				[1] = "nippleCensorBar",
+				[1] = "nippleCensorBar"
 			}
 		},
 		["Heels [Legs6]"] = {
@@ -11228,7 +11047,7 @@ function RoClothes(Player)
 				[7] = "blShaft",
 				[8] = "trShaft",
 				[9] = "tlShaft",
-				[10] = "tipKnot",
+				[10] = "tipKnot"
 			},
 			["HP"] = 4,
 		},
@@ -11252,7 +11071,7 @@ function RoClothes(Player)
 				[7] = "blShaftN",
 				[8] = "trShaftN",
 				[9] = "tlShaftN",
-				[10] = "tipKnotN",
+				[10] = "tipKnotN"
 			},
 			["HP"] = 4,
 		},
@@ -11267,7 +11086,7 @@ function RoClothes(Player)
 		},
 		["Bulge"] = {
 			["Weld"] = {
-				[1] = "Bulge",
+				[1] = "Bulge"
 			},
 			["HP"] = 2,
 		},
@@ -18428,7 +18247,7 @@ function RoClothes(Player)
 										RNipple.CFrame * Vector3.new(.45, -.3, -.3),
 										LNipple.CFrame * Vector3.new(.45, -.3, .3),
 										RNipple.CFrame * Vector3.new(.45, .3, -.3),
-										LNipple.CFrame * Vector3.new(.45, .3, .3),
+										LNipple.CFrame * Vector3.new(.45, .3, .3)
 									}
 
 									local minX, minY = math.huge, math.huge
@@ -23669,7 +23488,7 @@ function RoClothes(Player)
 					["Torso"] = true,
 					["Right Leg"] = true,
 					["Left Leg"] = true,
-					["Hat"] = true,
+					["Hat"] = true
 				}
 			end
 		end
