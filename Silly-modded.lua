@@ -12073,7 +12073,7 @@ function RoClothes(Player)
 				"Roblox Butt Shirt",
 				"Roblox Pants",
 				"Sock 2",
-				"Bodyless Clothes",
+				"Bodyless Clothes"
 			},
 			["Recolor"] = {
 				["Sock 2"] = {
