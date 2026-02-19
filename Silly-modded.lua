@@ -16076,7 +16076,7 @@ function RoClothes(Player)
 		if Type == "CFrame" then
 			return CFrame.new(Split[1],Split[2],Split[3],Split[4],Split[5],Split[6],Split[7],Split[8],Split[9],Split[10],Split[11],Split[12])
 		elseif Type == "RGB" then
-			return Color3.new(Split[1],Split[2],Split[3])
+			return Color3.fromRGB(Split[1],Split[2],Split[3])
 		elseif Type == "Vector3" then
 			return Vector3.new(Split[1],Split[2],Split[3])
 		end
@@ -20017,7 +20017,7 @@ function RoClothes(Player)
 						if PropertyName == "CockScale" then
 							PlayerData[SelectPlayer].CockScale = v
 						elseif PropertyName == "Color" then
-							local RGB = Function.StringTo(tostring(v), "RGB")
+							local RGB = Function.StringTo(tostring(v.R*255 .."," ..v.G*255 ..","..v.B*255), "RGB")
 							PlayerData[SelectPlayer]["PartList"][Name][PropertyName].Color = RGB
 						else
 							PlayerData[SelectPlayer]["PartList"][Name][PropertyName] = v
