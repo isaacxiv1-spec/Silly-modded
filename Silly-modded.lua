@@ -1,29 +1,27 @@
 --[[	
 
-	/ ＲＯＣＬＯＴＨＥＳ
-	Version - 0.7.9:lerp()
+	/ RO-CLOTHES - LERP FORK
+	A Fork of LERP's Ro-Clothes version 
+	Version - 0.9.18:krul(V4.3.56.0412)
+	This script is a fork of 0.7.9:lerp(1.01patch)
+	| THIS SCRIPT IS MAINTAINTED BY KRUL AND NOT LERP, ALL CREDIT GOES TO LERP, THIS VERSION IS MY OWN VERSION AND MAINTAINED BY ME ONLY
+	
 	Mod's Discord - discord.gg/k2HbJMY6Fr
 	Unknowing's Discord - discord.gg/HBzvWE6Rp3
 	
 	| This script requires a LOCAL folder "RClothesContent" to be added in ROBLOX's content folder, or it'll self-destruct itself
 	
-	| RoClothes is a Client-Sided Exploiting Script, that allows the player to have nude BodyParts/Clothes
-	Can be used on any executor
+	| RoClothes is a Client-Sided Utility Script, that allows the player to have nude BodyParts/Clothes
+	Can be used on any loader
 	
 	| This script WILL cause FPS drops, because of BodyParts/Clothes meshes inside the Player model
 	
-	| 𝐔𝐒𝐄 𝐀𝐓 𝐘𝐎𝐔𝐑 𝐎𝐖𝐍 𝐑𝐈𝐒𝐊
-	| 𝐖𝐎𝐑𝐊 𝐈𝐍 𝐏𝐑𝐎𝐆𝐑𝐄𝐒𝐒
-	
-	The original developer of RoClothes is no longer working on this script.
-	This is a MODDED version of this script that might or might not be updated.
-	If you know who the creator of this mod is, feel free to make requests or suggest some things.
-	
+	| USE AT YOUR OWN RISK
+	| WORK IN PROGRESS
 	
 	
 	original version 0.7
-	local version 0.7.9:lerp()
-		
+	LERP version 0.7.9:lerp(1.01patch) + KRUL version 0.8.7:krul(V4.1.0612)
 
 
 
@@ -38,8 +36,6 @@
 
 
 
-	
-	
 
 
 
@@ -86,53 +82,497 @@ local PS = game:GetService("Players")
 local RS = game:GetService("RunService")
 local HS = game:GetService("HttpService")
 
+-- Tail animation constants (outside RoClothes to save local registers)
+local timeStep = 1 / 60
+local inverseTimeStep = 1 / timeStep
+local wagAnimationDropAmplitude = 0.2
+local wagAnimationSwayAmplitude = 0.4
+local wagAnimationRollAmplitude = 0.5
+local wagAnimationBlendInAlpha = 0.008
+local wagAnimationBlendOutAlpha = 0.02
+
+-- V4.3.50 hotfix: moved out of RoClothes to avoid LuaU 200-local register cap per function.
+-- Modules A (physics warn throttle) + C (weld re-clone budget) pushed RoClothes over the limit,
+-- triggering "Out of local registers" at UIDragDetector allocation. Keeping these file-scope
+-- means TryRecloneWeld and the physics pcall handler capture them as upvalues instead of locals.
+local physicsWarnState = {}  -- [errKey] = lastWarnClock
+local PHYSICS_WARN_COOLDOWN = 5
+local reCloneBudget = setmetatable({}, {__mode = "k"})
+local RECLONE_WINDOW_SECONDS = 1
+local RECLONE_MAX_PER_WINDOW = 8
+
 function RoClothes(Player)
 	print("RoCC")
 
-	--[[
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-
-                                      ██╗░░░░░░█████╗░░█████╗░░█████╗░██╗░░░░░
-                                      ██║░░░░░██╔══██╗██╔══██╗██╔══██╗██║░░░░░
-                                      ██║░░░░░██║░░██║██║░░╚═╝███████║██║░░░░░
-                                      ██║░░░░░██║░░██║██║░░██╗██╔══██║██║░░░░░
-                                      ███████╗╚█████╔╝╚█████╔╝██║░░██║███████╗
-                                      ╚══════╝░╚════╝░░╚════╝░╚═╝░░╚═╝╚══════╝
-                                  
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	]]
-
+	-- Setup Tables
+	local Maid = {}
+	local Function = {Spring = {}}
 	local GUIObject = {}
+	local PlayerData = {}
+	local AllConnect = {}
+	local PhysicsSliderRefreshers = {}  -- V4.3.1: populated by MakePhysicsSlider; called from GUIUpdate to re-sync slider fills + labels
+
+	local PositionPhysicsMultiply = 1
+	local RotationPhysicsMultiply = 4
+	local Method = 1
+	local loadupFPerson = 0
+	local SelectPlayer = PS.LocalPlayer.Name
+	local CharacterPreviewLoading = false
+
+	Maid.__index = Maid
+	function Maid.new() return setmetatable({Tasks = {}}, Maid) end
+	function Maid:Give(task)
+		local id = HS:GenerateGUID(false)
+		self.Tasks[id] = task
+		return task, id
+	end
+	function Maid:Remove(idOrTask)
+		for id, task in pairs(self.Tasks) do
+			if id == idOrTask or task == idOrTask then
+				if typeof(task) == "RBXScriptConnection" then
+					task:Disconnect()
+				elseif typeof(task) == "Instance" then
+					task:Destroy()
+				elseif typeof(task) == "function" then
+					task()
+				elseif typeof(task) == "table" and task.Destroy then
+					task:Destroy()
+				end
+				self.Tasks[id] = nil
+				break
+			end
+		end
+	end
+	function Maid:DoCleaning()
+		for id, task in pairs(self.Tasks) do
+			if typeof(task) == "RBXScriptConnection" then
+				task:Disconnect()
+			elseif typeof(task) == "Instance" then
+				task:Destroy()
+			elseif typeof(task) == "function" then
+				task()
+			elseif typeof(task) == "table" and task.Destroy then
+				task:Destroy()
+			elseif typeof(task) == "table" and task.Disconnect then
+				task:Disconnect()
+			end
+			self.Tasks[id] = nil
+		end
+	end
+
+	local System = {
+		Env = (getgenv and getgenv()) or _G,
+		GlobalMaid = Maid.new()
+	}
+
+	do
+		System.NPCs = {}
+		System.tailVariables = {}
+		System.tailVariables.Default = {
+			tailScaledAnimationTime = 0,
+			tailScaledTime = 0,
+			accumulator = 0,
+			stiffness = 96,
+			damping = 9,
+			linearAmplitude = Vector3.new(13, 8, 13),
+			angularAmplitude = Vector3.new(0, 25, 0),
+			timeScale = 1,
+			wagAnimationEnabled = true,
+			wagAnimationSpeed = 1
+		}
+		System.BundleButtons = {}
+		System.ClothesButtons = {}
+		System.RecolorButtons = {}
+
+		System.RigMap = {
+			["Head"] = {"Head"},
+			["Torso"] = {"UpperTorso", "LowerTorso"},
+			["Right Arm"] = {"RightUpperArm", "RightLowerArm", "RightHand"},
+			["Left Arm"] = {"LeftUpperArm", "LeftLowerArm", "LeftHand"},
+			["Right Leg"] = {"RightUpperLeg", "RightLowerLeg", "RightFoot"},
+			["Left Leg"] = {"LeftUpperLeg", "LeftLowerLeg", "LeftFoot"}
+		}
+		
+		System.BodyPartSize = {
+			["Head"] = Vector3.new(2, 1, 1),
+			["HeadScale"] = Vector3.new(1, 1, 1),
+			["HeadMeshFix"] = Vector3.new(1.198, 1.202, 1.198),
+			["Torso"] = Vector3.new(2, 2, 1),
+			["Left Arm"] = Vector3.new(1, 2, 1),
+			["Left Leg"] = Vector3.new(1, 2, 1),
+			["Right Arm"] = Vector3.new(1, 2, 1),
+			["Right Leg"] = Vector3.new(1, 2, 1),
+			["HumanoidRootPart"] = Vector3.new(2, 2, 1),
+		}
+
+		System.AttachmentCFrame = {
+			["RootAttachment"] = CFrame.new(0,0,0),
+
+			["FaceCenterAttachment"] = CFrame.new(0,0,0),
+			["FaceFrontAttachment"] = CFrame.new(0, 0, -0.6),
+			["HairAttachment"] = CFrame.new(0,0.6,0),
+			["HatAttachment"] = CFrame.new(0,0.6,0),
+
+			["LeftGripAttachment"] = CFrame.new(0, -1, 0),
+			["LeftShoulderAttachment"] = CFrame.new(0,1,0),
+
+			["LeftFootAttachment"] = CFrame.new(0, -1, 0),
+
+			["RightGripAttachment"] = CFrame.new(0, -1, 0),
+			["RightShoulderAttachment"] = CFrame.new(0,1,0),
+
+			["RightFootAttachment"] = CFrame.new(0, -1, 0),
+
+			["BodyBackAttachment"] = CFrame.new(0, 0, 0.5),
+			["BodyFrontAttachment"] = CFrame.new(0, 0, -0.5),
+			["LeftCollarAttachment"] = CFrame.new(-1, 1, 0),
+			["NeckAttachment"] = CFrame.new(0, 1, 0),
+			["RightCollarAttachment"] = CFrame.new(1, 1, 0),
+			["WaistBackAttachment"] = CFrame.new(0, -1, 0.5),
+			["WaistCenterAttachment"] = CFrame.new(0, -1, 0),
+			["WaistFrontAttachment"] = CFrame.new(0, -1, -0.5),
+		}
+
+		System.AttachmentParent = {
+			["RootAttachment"] = "HumanoidRootPart",
+
+			["FaceCenterAttachment"] = "Head",
+			["FaceFrontAttachment"] = "Head",
+			["HairAttachment"] = "Head",
+			["HatAttachment"] = "Head",
+
+			["LeftGripAttachment"] = "Left Arm",
+			["LeftShoulderAttachment"] = "Left Arm",
+
+			["LeftFootAttachment"] = "Left Leg",
+
+			["RightGripAttachment"] = "Right Arm",
+			["RightShoulderAttachment"] = "Right Arm",
+
+			["RightFootAttachment"] = "Right Leg",
+
+			["BodyBackAttachment"] = "Torso",
+			["BodyFrontAttachment"] = "Torso",
+			["LeftCollarAttachment"] = "Torso",
+			["NeckAttachment"] = "Torso",
+			["RightCollarAttachment"] = "Torso",
+			["WaistBackAttachment"] = "Torso",
+			["WaistCenterAttachment"] = "Torso",
+			["WaistFrontAttachment"] = "Torso",
+		}
+
+		System.Method2BodyPart = {
+			"Torso", "UpperTorso", "LowerTorso",
+			"Left Arm", "LeftUpperArm", "LeftLowerArm", "LeftHand",
+			"Right Arm", "RightUpperArm", "RightLowerArm", "RightHand",
+			"Left Leg", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot",
+			"Right Leg", "RightUpperLeg", "RightLowerLeg", "RightFoot",
+			"Head"
+		}
+
+		System.HumanoidAccessoryName = {
+			"HairAccessory",
+			"BackAccessory",
+			"FaceAccessory",
+			"FrontAccessory",
+			"HatAccessory",
+			"NeckAccessory",
+			"ShouldersAccessory",
+			"WaistAccessory",
+		}
+
+		System.AccessoryType = {
+			[8] = "HatAccessory",
+			[41] = "HairAccessory",
+			[42] = "FaceAccessory",
+			[43] = "NeckAccessory",
+			[44] = "ShouldersAccessory",
+			[45] = "FrontAccessory",
+			[46] = "BackAccessory",
+			[47] = "WaistAccessory",
+		}
+
+		System.R15Size = {
+			["UpperTorso"] = Vector3.new(2.043, 1.796, 1.01),
+			["UpperTorsoFemale"] = Vector3.new(2.043, 1.796, 1.01),
+			["RightLowerArm"] = Vector3.new(1, 0.78, 1),
+			["LeftLowerArm"] = Vector3.new(1, 0.78, 1),
+			["RightLowerLeg"] = Vector3.new(1, 1.231, 1.335),
+			["LeftLowerLeg"] = Vector3.new(1, 1.231, 1.335),
+		}
+
+		System.R15Transparency = {
+			["UpperTorso"] = true,
+			["LowerTorso"] = true,
+			["RightUpperArm"] = true,
+			["RightLowerArm"] = true,
+			["RightHand"] = true,
+			["LeftUpperArm"] = true,
+			["LeftLowerArm"] = true,
+			["LeftHand"] = true,
+			["RightUpperLeg"] = true,
+			["RightLowerLeg"] = true,
+			["RightFoot"] = true,
+			["LeftUpperLeg"] = true,
+			["LeftLowerLeg"] = true,
+			["LeftFoot"] = true,
+		}
+
+		System.R6Size = {
+			["Head"] = Vector3.new(2, 1, 1),
+			["Torso"] = Vector3.new(2, 2, 1),
+			["Left Arm"] = Vector3.new(1, 2, 1),
+			["Left Leg"] = Vector3.new(1, 2, 1),
+			["Right Arm"] = Vector3.new(1, 2, 1),
+			["Right Leg"] = Vector3.new(1, 2, 1),
+		}
+
+		System.WeldCFrame = {
+			["Torso"] = CFrame.new(0, -0.2, 0),
+			["Right Arm"] = CFrame.new(0, 0.2, 0),
+			["Left Arm"] = CFrame.new(0, 0.2, 0),
+			["Right Leg"] = CFrame.new(0, 0.2, 0),
+			["Left Leg"] = CFrame.new(0, 0.2, 0)
+		}
+
+		System.Transformation = {
+			RootRotationOffset = CFrame.Angles(0, math.rad(90), 0),
+			RotationMappings = {
+				Rod = { X = "X", Y = "Z", Z = "Y" },
+				HorseRod = { X = "Y", Y = "X", Z = "Z" },
+				OrganTorso = { X = "Y", Y = "X", Z = "Z" },
+				BBCBalls = { X = "Y", Y = "X", Z = "Z" },
+				BallsKnot = { X = "X", Y = "Y", Z = "Z" },
+				HorseBall = { X = "Y", Y = "X", Z = "Z" },
+				Default = { X = "X", Y = "Y", Z = "Z" }
+			},
+			MeshScale = {
+				Breasts = {
+					Type1 = Vector3.new(0.336, 0.332, 0.333),
+					Type2 = Vector3.new(1, 1, 1),
+					Type3 = Vector3.new(0.541, 0.541, 0.541),
+					Type5 = Vector3.new(0.336, 0.332, 0.333),
+				},
+				Butts = Vector3.new(0.443, 0.443, 0.443),
+				Cocks = Vector3.new(0.336, 0.332, 0.333),
+				BunnyBandPin = Vector3.new(0.052, 0.269, 0.218),
+			},
+			PhysicsRotation = {
+				Breasts = {
+					X = 2.5,
+					Y = -5,
+					Z = 0
+				},
+				Buttocks = {
+					X = 3,
+					Y = 2,
+					Z = 2
+				},
+				Default = {
+					X = 5,
+					Y = -5,
+					Z = 5
+				},
+				BBCBalls = {
+					X = 2,
+					Y = 1,
+					Z = 5
+				},
+				Rod = {
+					X = 2,
+					Y = -7,
+					Z = 5
+				},
+				RodDefault = {
+					X = 2,
+					Y = 7,
+					Z = 5
+				}
+			},
+			PhysicsPosition = {
+				Buttocks = {
+					X = 1/20,
+					Y = 1/40,
+					Z = 1/20
+				},
+				Default = {
+					X = 0,
+					Y = 0,
+					Z = 0
+				}
+			},
+			CFramePresets = {
+				r6TailPivotOffset = CFrame.new(0, 0.3, 0)
+			}
+		}
+
+		System.MeshOffsets = {
+			ToarBreasts = {
+				LCF0 = CFrame.new(-0.24647522, 0.635473013, -0.450714111, 0.171514884, 0.185762599, -0.967509627, -0.0996441022, 0.980297148, 0.170553446, 0.980129421, 0.067154184, 0.186645687),
+				LCF1 = CFrame.new(0.200012207, 0.400001526, -1.52587891e-05, 1, 0, 0, 0, 1, 0, 0, 0, 1),
+				RCF0 = CFrame.new(0.246000007, 0.63499999, -0.451000005, -0.157161966, -0.1847606, -0.970135868, -0.0996441022, 0.980297148, -0.170553446, 0.982533038, 0.0698638037, -0.172475725),
+				RCF1 = CFrame.new(0.200000003, 0.400000006, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+			},
+			BunnyBandPin = {
+				WeldC0 = CFrame.new(0.007, 0, -0.593) * CFrame.Angles(0, 0, math.rad(180))
+			}
+		}
+
+		System.ConvertPart = {
+			["Torso"] = "UpperTorso",
+			["Right Arm"] = "RightLowerArm",
+			["Left Arm"] = "LeftLowerArm",
+			["Right Leg"] = "RightLowerLeg",
+			["Left Leg"] = "LeftLowerLeg"
+		}
+
+		System.R6Mesh = {
+			["TorsoMale"] = "rbxassetid://456901040",
+			["TorsoFemale"] = "rbxassetid://9747912904",
+			["Right Arm"] = "rbxassetid://5062992824",
+			["Left Arm"] = "rbxassetid://5062992824",
+			["Right Leg"] = "rbxassetid://5062992824",
+			["Left Leg"] = "rbxassetid://5062992824"
+		}
+
+		local env_tmp = System.Env
+		System.isfolder = isfolder or function() return false end
+		System.makefolder = makefolder or function() end
+		System.isfile = isfile or function() return false end
+		System.writefile = writefile or function() end
+		System.getcustomasset = getcustomasset or getsynasset or function(p) return "rbxasset://"..p end
+
+		System.Physics = {
+			DefaultProperties = PhysicalProperties.new(0.0001),
+			SpringConfigs = {
+				Breasts = { Speed = 8, Damper = 0.207 },
+				Buttocks = { Speed = 10, Damper = 0.1 },
+				Default = { Speed = 10, Damper = 0.20 }
+			}
+		}
+
+		System.Materials = {
+			Mappings = {
+				SmoothPlastic = Enum.Material.SmoothPlastic,
+				Metal = Enum.Material.Metal,
+				Glass = Enum.Material.Glass,
+				Neon = Enum.Material.Neon,
+				Fabric = Enum.Material.Fabric,
+				Plastic = Enum.Material.Plastic
+			}
+		}
+	end
+	
+	-- Localize System properties for legacy function compatibility
+	local GlobalMaid = System.GlobalMaid
+	local NPCs = System.NPCs
+	local tailVariables = System.tailVariables
+	local RigMap = System.RigMap
+	local BodyPartSize = System.BodyPartSize
+	local AttachmentCFrame = System.AttachmentCFrame
+	local AttachmentParent = System.AttachmentParent
+	local Method2BodyPart = System.Method2BodyPart
+	local EditableProperty = System.HumanoidAccessoryName
+	local AccessoryType = System.AccessoryType
+	local R15Size = System.R15Size
+	local R15Transparency = System.R15Transparency
+	local R6Size = System.R6Size
+	local WeldCFrame = System.WeldCFrame
+	local Transformation = System.Transformation
+	local MeshOffsets = System.MeshOffsets
+	local ConvertPart = System.ConvertPart
+	local R6Mesh = System.R6Mesh
+	local Physics = System.Physics
+	local Materials = System.Materials
+
+	-- Sub-property localization for direct access
+	local MeshScale = Transformation.MeshScale
+	local PhysicsRotation = Transformation.PhysicsRotation
+	local PhysicsPosition = Transformation.PhysicsPosition
+	local RotationMappings = Transformation.RotationMappings
+	local CFramePresets = Transformation.CFramePresets
+	local RootRotationOffset = Transformation.RootRotationOffset
+	local SpringConfigs = Physics.SpringConfigs
+	local DefaultProperties = Physics.DefaultProperties
+	local Mappings = Materials.Mappings
+
+
+	function Function.GetRigType(Character)
+		if Character:FindFirstChild("UpperTorso") then return "R15" end
+		return "R6"
+	end
+
+	function Function.CharacterIsBuilt(Character)
+		if not Character or not Character.Parent then return false end
+		local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+		local Root = Character:FindFirstChild("HumanoidRootPart")
+		local Face = Character:FindFirstChild("Head") and (Character.Head:FindFirstChild("face") or Character.Head:FindFirstChild("Face"))
+		
+		return Humanoid ~= nil and Root ~= nil and Character:IsDescendantOf(workspace)
+	end
+
+	local env = System.Env
+
+	function Function.GetAsset(Path)
+		local RelativePath = Path:gsub("rbxasset://", "")
+		local gca = getcustomasset or getsynasset
+		if System.isfile and gca and System.isfile(RelativePath) then
+			return gca(RelativePath)
+		end
+		-- Fallback: return the original path (handles rbxassetid:// Roblox assets)
+		return Path
+	end
+
+	function Function.InitializeAssets()
+		if env.isfolder and env.makefolder and not env.isfolder("RClothesContent") then
+			env.makefolder("RClothesContent")
+			warn("Ro-Clothes: Created missing RClothesContent folder in workspace.")
+		end
+	end
+
+	function Function.ApplyAssets(Root)
+		for _, v in pairs(Root:GetDescendants() or {}) do
+			if v:IsA("MeshPart") then
+				v.MeshId = Function.GetAsset(v.MeshId)
+				v.TextureID = Function.GetAsset(v.TextureID)
+			elseif v:IsA("SpecialMesh") then
+				v.MeshId = Function.GetAsset(v.MeshId)
+				v.TextureId = Function.GetAsset(v.TextureId)
+			elseif v:IsA("Decal") or v:IsA("Texture") then
+				v.Texture = Function.GetAsset(v.Texture)
+			elseif v:IsA("ImageLabel") or v:IsA("ImageButton") then
+				v.Image = Function.GetAsset(v.Image)
+			end
+		end
+		-- Check root itself
+		if Root:IsA("MeshPart") then
+			Root.MeshId = Function.GetAsset(Root.MeshId)
+			Root.TextureID = Function.GetAsset(Root.TextureID)
+		elseif Root:IsA("SpecialMesh") then
+			Root.MeshId = Function.GetAsset(Root.MeshId)
+			Root.TextureId = Function.GetAsset(Root.TextureId)
+		end
+	end
+	
+	Function.InitializeAssets()
+
+	-- Singleton Logic: Kill previous script instances
+	local OldBreaker = game.Workspace:FindFirstChild("RoClothesBreaker")
+	if OldBreaker then OldBreaker:Destroy() end
+	
+	local BREAKER = Instance.new("Folder", game.Workspace)
+	BREAKER.Name = "RoClothesBreaker"
+	BREAKER.Archivable = false
+	
+	-- Connect cleanup to object destruction (Event-based instead of Polling)
+	BREAKER.Destroying:Connect(function()
+		GlobalMaid:DoCleaning()
+		if GUIObject.Screen and GUIObject.Screen.Parent then
+			GUIObject.Screen:Destroy()
+		end
+		print("Ro-Clothes Krul Fork: Session Cleaned Up via Signal")
+	end)
+
 
 	GUIObject.Screen = Instance.new("ScreenGui")
 	GUIObject.MainFrame = Instance.new("TextButton")
@@ -156,6 +596,9 @@ function RoClothes(Player)
 	GUIObject.UIGradient_4 = Instance.new("UIGradient")
 	GUIObject.UICorner_4 = Instance.new("UICorner")
 	GUIObject.PlayerExecute = Instance.new("TextBox")
+	GUIObject.PlayerDropdownToggle = Instance.new("TextButton")
+	GUIObject.PlayerDropdownFrame = Instance.new("ScrollingFrame")
+	GUIObject.PlayerDropdownLayout = Instance.new("UIListLayout")
 	GUIObject.BreastsTypeFrame = Instance.new("Frame")
 	GUIObject.UIGradient_5 = Instance.new("UIGradient")
 	GUIObject.UICorner_5 = Instance.new("UICorner")
@@ -483,6 +926,27 @@ function RoClothes(Player)
 	GUIObject.importBundle = Instance.new("Frame")
 	GUIObject.importBundleBox = Instance.new("TextBox")
 	GUIObject.exportBox = Instance.new("Frame")
+
+	-- Physics Tuning GUI Objects
+	GUIObject.BreastsStiffnessFrame = Instance.new("Frame")
+	GUIObject.BS_Stiff_UICorner = Instance.new("UICorner")
+	GUIObject.BS_Stiff_UIGradient = Instance.new("UIGradient")
+	GUIObject.BreastsStiffnessText = Instance.new("TextBox")
+
+	GUIObject.BreastsDampingFrame = Instance.new("Frame")
+	GUIObject.BS_Damp_UICorner = Instance.new("UICorner")
+	GUIObject.BS_Damp_UIGradient = Instance.new("UIGradient")
+	GUIObject.BreastsDampingText = Instance.new("TextBox")
+
+	GUIObject.ButtsStiffnessFrame = Instance.new("Frame")
+	GUIObject.BT_Stiff_UICorner = Instance.new("UICorner")
+	GUIObject.BT_Stiff_UIGradient = Instance.new("UIGradient")
+	GUIObject.ButtsStiffnessText = Instance.new("TextBox")
+
+	GUIObject.ButtsDampingFrame = Instance.new("Frame")
+	GUIObject.BT_Damp_UICorner = Instance.new("UICorner")
+	GUIObject.BT_Damp_UIGradient = Instance.new("UIGradient")
+	GUIObject.ButtsDampingText = Instance.new("TextBox")
 	GUIObject.exportButton = Instance.new("TextButton")
 	GUIObject.delFrame = Instance.new("Frame")
 	GUIObject.delButton = Instance.new("TextButton")
@@ -511,8 +975,10 @@ function RoClothes(Player)
 		env.copy = missing("function", setclipboard)
 	end
 	-- variables --
+	local VersionInternal = "4.3.42.0414"
+	local VersionDate = "2026-04-11"
 	local hidden = true
-	
+
 	local Mouse = Player:GetMouse()
 
 	local Method2CharacterFolder = game.Workspace:FindFirstChild("Method2CharacterFolder")
@@ -528,7 +994,7 @@ function RoClothes(Player)
 	local TS = game:GetService("TweenService")
 	local MPS = game:GetService("MarketplaceService")
 
-	local CVersion = "0.7.9:lerp()"
+	local CVersion = "0.9.18:krul(V4.3.56.0412)"
 
 	-- these settings are saved and loaded --
 	local loadupBundle = ""
@@ -539,7 +1005,7 @@ function RoClothes(Player)
 	local hpKEYBIND = Enum.KeyCode.Equals
 	local dpKEYBIND = Enum.KeyCode.Minus
 	-- you probably shouldnt edit these --
-	
+
 	local maxFPersonMethod = 6
 	local KeybindDetect = false
 	local hpKeybindDetect = false
@@ -563,11 +1029,10 @@ function RoClothes(Player)
 	local GuiPositionStart = nil
 	local MouseDownStart = nil
 
-	local AllConnect = {}
 	local MeshEditConnect = {}
 	local Debug = false
 
-	local SelectPlayer = Player.Name
+	SelectPlayer = Player.Name
 
 	local DarkerColorPercentage = 17.75
 	local Darker2ColorPercentage = 32.75
@@ -576,35 +1041,8 @@ function RoClothes(Player)
 	local PreviewRotate = 0
 	local PreviewRadius = 5
 	local PreviewRotateSpeed = 200
-	local CharacterPreviewLoading = false
-
-	local NPCs = {}
 
 	local PositionPhysicsMultiply = 1
-	local RotationPhysicsMultiply = 4
-
-	-- tail stuff --
-	local includedAccessoryNames = {} -- if ur tail isnt recognized as one, put its name here
-	local excludeAccessoryNames = {} -- if ur accessory is recognized as a tail but it isnt, put its name here
-	local timeStep = 1 / 60
-	local inverseTimeStep = 1 / timeStep
-
-	local wagAnimationDropAmplitude = 0.2 -- Default: 0.2. How far in radians the tail will rotate down (90% of this value is rotating down and 10% is up)
-	local wagAnimationSwayAmplitude = 0.4 -- Default: 0.4. How far in radians the tail will rotate left and right.
-	local wagAnimationRollAmplitude = 0.5 -- Default: 0.5. How far in radians the tail will roll/twist.
-
-	local wagAnimationBlendInAlpha = 0.008
-	local wagAnimationBlendOutAlpha = 0.02
-
-	local movementDistanceThreshold = 15 -- The physics tail interprets a teleporting player as moving fast. Movements beyond this radius are ignored.
-
-	local tailVariables = { -- DO NOT CHANGE, THIS IS FOR PHYSIC CALCULATIONS
-		["Default"] = {
-			tailScaledAnimationTime = 0,
-			tailScaledTime = 0,
-			accumulator = 0,
-		}
-	}
 
 	-- advanced --
 	local globalWindEnabled = false -- A global force from workspace.GlobalWind. Default: false
@@ -617,11 +1055,12 @@ function RoClothes(Player)
 
 	-- end tail stuff --
 
-	local Function = {Spring = {}}
 
 	function Function.PlayerDataDefault()
 		return {
 			Character = nil,
+			ExecutionMaid = Maid.new(),
+			LastRequestID = 0,
 
 			isTailCurrentlyEnabled = true,
 			tailSettings = {
@@ -629,7 +1068,7 @@ function RoClothes(Player)
 
 				stiffness = 96, -- More stiffness is less flexible. Default: 96
 				damping = 9, -- Resistance due to drag (slow down). Default: 9
-				linearAmplitude = Vector3.new(13, 11, 13), -- Default: Vector3.new(48, 19, 48)
+				linearAmplitude = Vector3.new(13, 8, 13), -- Default: Vector3.new(48, 19, 48)
 				angularAmplitude = Vector3.new(0, 25, 0), -- Default: Vector3.new(0, 18, 0)
 				timeScale = 1, -- Creates a floaty feel if slowed down (e.g. 0.3). This also affects the animation. Default: 1
 
@@ -640,6 +1079,8 @@ function RoClothes(Player)
 			CurrentClothes = {},
 			ClothesRecolor = {},
 			CurrentBundle = "nil",
+			CurrentPreset = nil,
+			CurrentClothingBundles = {},
 			AutoExecute = true,
 			DelayTime = 1,
 			Tone = "Base",
@@ -667,10 +1108,16 @@ function RoClothes(Player)
 			CatalogRemove = {},
 			SkinTone = nil,
 			NippleColor = nil,
+			NippleColorFromBundle = false,
 			CockScale = 1,
 			BreastsScale = 1,
 			ButtsScale = 1,
 			LegsScale = 1,
+
+			BreastsStiffness = loadupBreastsStiffness or 8,
+			BreastsDamping = loadupBreastsDamping or 0.207,
+			ButtsStiffness = loadupButtsStiffness or 10,
+			ButtsDamping = loadupButtsDamping or 0.1,
 			BreastsType = 1,
 			TorsoType = 1,
 			ArmType = 1,
@@ -684,12 +1131,14 @@ function RoClothes(Player)
 			HeadTracking = true,
 			RealtimeBodyTransparency = true,
 			OldTransparency = {},
+			LastRequestID = 0,
 
 			TopRipped = false,
 			BottomRipped = false,
 			SavedPreviousHP = 0,
 			SavedTopHP = 0,
 			SavedBottomHP = 0,
+			LinkedHeal = false,
 			Healing = false,
 			HealProgress = 0,
 			HardcoreHP = false,
@@ -727,7 +1176,8 @@ function RoClothes(Player)
 					["Mesh"] = {},
 					["Accessory"] = {},
 					["Special"] = {},
-					["SpecialMesh"] = {}
+					["SpecialMesh"] = {},
+					["Bone"] = {}
 				},
 				PartParent = {},
 				BodyPartPhysics = {},
@@ -735,112 +1185,14 @@ function RoClothes(Player)
 				AreolaDecal = {},
 				OriginalTransparency = {},
 			},
-			ConvertedPart = {}
+			ConvertedPart = {},
+			Connections = {},
+			OriginalAttachmentCFrames = {},
 		}
 	end
 
-	local R15Size = {
-		["UpperTorso"] = Vector3.new(2.043, 1.796, 1.01),
-		["UpperTorsoFemale"] = Vector3.new(2.043, 1.796, 1.01),
-		["RightLowerArm"] = Vector3.new(1, 0.78, 1),
-		["LeftLowerArm"] = Vector3.new(1, 0.78, 1),
-		["RightLowerLeg"] = Vector3.new(1, 1.231, 1.335),
-		["LeftLowerLeg"] = Vector3.new(1, 1.231, 1.335),
-	}
 
-	local R15Transparency = {
-		"UpperTorso",
-		"LowerTorso",
-		"RightUpperArm",
-		"RightLowerArm",
-		"RightHand",
-		"LeftUpperArm",
-		"LeftLowerArm",
-		"LeftHand",
-		"RightUpperLeg",
-		"RightLowerLeg",
-		"RightFoot",
-		"LeftUpperLeg",
-		"LeftLowerLeg",
-		"LeftFoot",
-	}
 
-	local R6Size = {
-		["Head"] = Vector3.new(2, 1, 1),
-		["Torso"] = Vector3.new(2, 2, 1),
-		["Left Arm"] = Vector3.new(1, 2, 1),
-		["Left Leg"] = Vector3.new(1, 2, 1),
-		["Right Arm"] = Vector3.new(1, 2, 1),
-		["Right Leg"] = Vector3.new(1, 2, 1),
-	}
-
-	local WeldCFrame = {
-		["Torso"] = CFrame.new(0, -0.2, 0),
-		["Right Arm"] = CFrame.new(0, 0.2, 0),
-		["Left Arm"] = CFrame.new(0, 0.2, 0),
-		["Right Leg"] = CFrame.new(0, 0.2, 0),
-		["Left Leg"] = CFrame.new(0, 0.2, 0)
-	}
-
-	local ConvertPart = {
-		["Torso"] = "UpperTorso",
-		["Right Arm"] = "RightLowerArm",
-		["Left Arm"] = "LeftLowerArm",
-		["Right Leg"] = "RightLowerLeg",
-		["Left Leg"] = "LeftLowerLeg"
-	}
-
-	local R6Mesh = {
-		["TorsoMale"] = "rbxassetid://456901040",
-		["TorsoFemale"] = "rbxassetid://9747912904",
-		["Right Arm"] = "rbxassetid://5062992824",
-		["Left Arm"] = "rbxassetid://5062992824",
-		["Right Leg"] = "rbxassetid://5062992824",
-		["Left Leg"] = "rbxassetid://5062992824"
-	}
-
-	--[[
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-
-                                      ████████╗░█████╗░██████╗░██╗░░░░░███████╗
-                                      ╚══██╔══╝██╔══██╗██╔══██╗██║░░░░░██╔════╝
-                                      ░░░██║░░░███████║██████╦╝██║░░░░░█████╗░░
-                                      ░░░██║░░░██╔══██║██╔══██╗██║░░░░░██╔══╝░░
-                                      ░░░██║░░░██║░░██║██████╦╝███████╗███████╗
-                                      ░░░╚═╝░░░╚═╝░░╚═╝╚═════╝░╚══════╝╚══════╝
-                                  
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	]]
 
 	function Function.PartListDefault()
 		return {
@@ -9457,7 +9809,7 @@ function RoClothes(Player)
 				},
 				["Function"] = "twitchEffect"
 			}, 
-			
+
 			["Gagball"] = {
 				["Instance"] = "Mesh",
 				["Name"] = "Gag",
@@ -9605,7 +9957,7 @@ function RoClothes(Player)
 		}
 	end
 
-	local PlayerData = {
+	PlayerData = {
 		[Player.Name] = Function.PlayerDataDefault()
 	}
 
@@ -9636,126 +9988,9 @@ function RoClothes(Player)
 		}
 	}
 
-	local EditableProperty = {
-		"TextureId",
-		"Offset",
-		"Rotation",
-		"Size",
-		"Transparency",
-		"MeshBasePartTransparency",
-		"Color",
-		"Reflectance",
-	}
-
-	local Method2BodyPart = {
-		"Torso",
-		"Left Arm",
-		"Right Arm",
-		"Left Leg",
-		"Right Leg",
-		"Head",
-	}
-
-	local BodyColorPart = {
-		["HeadColor3"] = "Head",
-		["LeftArmColor3"] = "Left Arm",
-		["RightArmColor3"] = "Right Arm",
-		["LeftLegColor3"] ="Left Leg",
-		["RightLegColor3"] = "Right Leg",
-		["TorsoColor3"] = "Torso"
-	}
-
-	local BodyPartSize = {
-		["Head"] = Vector3.new(2, 1, 1),
-		["HeadScale"] = Vector3.new(1, 1, 1),
-		["HeadMeshFix"] = Vector3.new(1.198, 1.202, 1.198),
-		["Torso"] = Vector3.new(2, 2, 1),
-		["Left Arm"] = Vector3.new(1, 2, 1),
-		["Left Leg"] = Vector3.new(1, 2, 1),
-		["Right Arm"] = Vector3.new(1, 2, 1),
-		["Right Leg"] = Vector3.new(1, 2, 1),
-		["HumanoidRootPart"] = Vector3.new(2, 2, 1),
-	}
-
-	local AttachmentCFrame = {
-		["RootAttachment"] = CFrame.new(0,0,0),
-
-		["FaceCenterAttachment"] = CFrame.new(0,0,0),
-		["FaceFrontAttachment"] = CFrame.new(0, 0, -0.6),
-		["HairAttachment"] = CFrame.new(0,0.6,0),
-		["HatAttachment"] = CFrame.new(0,0.6,0),
-
-		["LeftGripAttachment"] = CFrame.new(0, -1, 0),
-		["LeftShoulderAttachment"] = CFrame.new(0,1,0),
-
-		["LeftFootAttachment"] = CFrame.new(0, -1, 0),
-
-		["RightGripAttachment"] = CFrame.new(0, -1, 0),
-		["RightShoulderAttachment"] = CFrame.new(0,1,0),
-
-		["RightFootAttachment"] = CFrame.new(0, -1, 0),
-
-		["BodyBackAttachment"] = CFrame.new(0, 0, 0.5),
-		["BodyFrontAttachment"] = CFrame.new(0, 0, -0.5),
-		["LeftCollarAttachment"] = CFrame.new(-1, 1, 0),
-		["NeckAttachment"] = CFrame.new(0, 1, 0),
-		["RightCollarAttachment"] = CFrame.new(1, 1, 0),
-		["WaistBackAttachment"] = CFrame.new(0, -1, 0.5),
-		["WaistCenterAttachment"] = CFrame.new(0, -1, 0),
-		["WaistFrontAttachment"] = CFrame.new(0, -1, -0.5),
-	}
-
-	local AttachmentParent = {
-		["RootAttachment"] = "HumanoidRootPart",
-
-		["FaceCenterAttachment"] = "Head",
-		["FaceFrontAttachment"] = "Head",
-		["HairAttachment"] = "Head",
-		["HatAttachment"] = "Head",
-
-		["LeftGripAttachment"] = "Left Arm",
-		["LeftShoulderAttachment"] = "Left Arm",
-
-		["LeftFootAttachment"] = "Left Leg",
-
-		["RightGripAttachment"] = "Right Arm",
-		["RightShoulderAttachment"] = "Right Arm",
-
-		["RightFootAttachment"] = "Right Leg",
-
-		["BodyBackAttachment"] = "Torso",
-		["BodyFrontAttachment"] = "Torso",
-		["LeftCollarAttachment"] = "Torso",
-		["NeckAttachment"] = "Torso",
-		["RightCollarAttachment"] = "Torso",
-		["WaistBackAttachment"] = "Torso",
-		["WaistCenterAttachment"] = "Torso",
-		["WaistFrontAttachment"] = "Torso",
-	}
-
-	local HumanoidAccessoryName = {
-		"HairAccessory",
-		"BackAccessory",
-		"FaceAccessory",
-		"FrontAccessory",
-		"HatAccessory",
-		"NeckAccessory",
-		"ShouldersAccessory",
-		"WaistAccessory",
-	}
-
-	local AccessoryType = {
-		[8] = "HatAccessory",
-		[41] = "HairAccessory",
-		[42] = "FaceAccessory",
-		[43] = "NeckAccessory",
-		[44] = "ShouldersAccessory",
-		[45] = "FrontAccessory",
-		[46] = "BackAccessory",
-		[47] = "WaistAccessory",
-	}
-
-	local Bundle = {
+	local Bundle
+	do
+		Bundle = {
 		["nil"] = "nil",
 		["Bald"] = {},
 		["Sportsy"] = {
@@ -10091,9 +10326,12 @@ function RoClothes(Player)
 			},
 			["IsPreset"] = true
 		},
-	}
+		}
+	end
 
-	local Clothes = {
+	local Clothes
+	do
+		Clothes = {
 		["School Shirt"] = {
 			["Weld"] = {
 				[1] = "School Shirt",
@@ -11312,58 +11550,6 @@ function RoClothes(Player)
 		}
 	}
 
-	--[[
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	
-                      ███████╗██╗░░░██╗███╗░░██╗░█████╗░████████╗██╗░█████╗░███╗░░██╗░██████╗
-                      ██╔════╝██║░░░██║████╗░██║██╔══██╗╚══██╔══╝██║██╔══██╗████╗░██║██╔════╝
-                      █████╗░░██║░░░██║██╔██╗██║██║░░╚═╝░░░██║░░░██║██║░░██║██╔██╗██║╚█████╗░
-                      ██╔══╝░░██║░░░██║██║╚████║██║░░██╗░░░██║░░░██║██║░░██║██║╚████║░╚═══██╗
-                      ██║░░░░░╚██████╔╝██║░╚███║╚█████╔╝░░░██║░░░██║╚█████╔╝██║░╚███║██████╔╝
-                      ╚═╝░░░░░░╚═════╝░╚═╝░░╚══╝░╚════╝░░░░╚═╝░░░╚═╝░╚════╝░╚═╝░░╚══╝╚═════╝░
-                                  
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	]]
-
-	----------------------------------------------------------------------------------------------------
-	----------------------------------------------------------------------------------------------------
-	----------------------------------------------------------------------------------------------------
-	----------------------------------------------------------------------------------------------------
-	----------------------------------------------PartList----------------------------------------------
-	----------------------------------------------------------------------------------------------------
-	----------------------------------------------------------------------------------------------------
-	----------------------------------------------------------------------------------------------------
-	----------------------------------------------------------------------------------------------------
 
 	function Function.CumDripDisplay(ObjectInstance, Character, Extra, Data)
 		local attach = Instance.new("Attachment",ObjectInstance)
@@ -11508,12 +11694,6 @@ function RoClothes(Player)
 			for i, v in pairs(PlayerData[Data].CurrentPartList.Organ) do
 				oil(v)
 			end
-			--[[for i, v in pairs(PlayerData[Data].CurrentPartList.Clothes) do
-				if string.find(string.lower(v.Name),"shirt") then
-					oil(v)
-					v.Transparency = 0.011
-				end
-			end]]
 		end)
 	end
 	function Function.OilUp2(ObjectInstance, Character, Extra, Data)
@@ -11583,12 +11763,6 @@ function RoClothes(Player)
 			for i, v in pairs(PlayerData[Data].CurrentPartList.Organ) do
 				oil(v)
 			end
-			--[[for i, v in pairs(PlayerData[Data].CurrentPartList.Clothes) do
-				if string.find(string.lower(v.Name),"shirt") then
-					oil(v)
-					v.Transparency = 0.011
-				end
-			end]]
 		end)
 	end
 	function Function.OilUp3(ObjectInstance, Character, Extra, Data)
@@ -11869,18 +12043,20 @@ function RoClothes(Player)
 		frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 		frame.BorderSizePixel = 0
 	end
-	
+
 	function Function.twitchEffect(ObjectInstance, Character, Extra, Data)
 		task.spawn(function()
 			repeat
 				task.wait(math.random(5,40)*0.1)
 				for Part, Property in pairs(PlayerData[Data].CurrentPartList.BodyPartPhysics) do
-					if Part.Name == "Rod" or Part.Name == "HorseRod" or Part.Name == "Main" or Part.Name == "BBC Rod" then
+					-- Rod Physics Guard: Ensure part still exists before accessing properties like Name
+					if Part and Part.Parent and (Part.Name == "Rod" or Part.Name == "HorseRod" or Part.Name == "Main" or Part.Name == "BBC Rod") then
 						local Spring = Property.Spring
-
-						for i=1, math.random(2,10) do
-							Spring:Impulse(Vector3.new(0,0.05,0))
-							task.wait()
+						if Spring then
+							for i=1, math.random(2,10) do
+								Spring:Impulse(Vector3.new(0,0.05,0))
+								task.wait()
+							end
 						end
 					end
 				end
@@ -12173,6 +12349,7 @@ function RoClothes(Player)
 	function Function.NippleType5Mesh(ObjectInstance, Character, Extra, Data)
 		local SpecialMesh = Instance.new("SpecialMesh")
 		local Scale = PlayerData[Data]["BreastsScale"]
+		local type5Scale = System.Transformation.MeshScale.Breasts.Type5
 
 		SpecialMesh.MeshType = Enum.MeshType.FileMesh
 
@@ -12183,9 +12360,9 @@ function RoClothes(Player)
 		end
 
 		if Scale ~= nil then
-			SpecialMesh.Scale = Function.Vector3Multiply(Vector3.new(0.336, 0.332, 0.333), {X = Scale, Y = Scale, Z = Scale})
+			SpecialMesh.Scale = Function.Vector3Multiply(type5Scale, {X = Scale, Y = Scale, Z = Scale})
 		else
-			SpecialMesh.Scale = Vector3.new(0.336, 0.332, 0.333)
+			SpecialMesh.Scale = type5Scale
 		end
 
 		SpecialMesh.Parent = ObjectInstance
@@ -12250,10 +12427,9 @@ function RoClothes(Player)
 		local LBW = LB:WaitForChild("Left Breast Weld")
 		local RBW = RB:WaitForChild("Right Breast Weld")
 
-		local LCF0 = CFrame.new(-0.24647522, 0.635473013, -0.450714111, 0.171514884, 0.185762599, -0.967509627, -0.0996441022, 0.980297148, 0.170553446, 0.980129421, 0.067154184, 0.186645687)
-		local LCF1 = CFrame.new(0.200012207, 0.400001526, -1.52587891e-05, 1, 0, 0, 0, 1, 0, 0, 0, 1)
-		local RCF0 = CFrame.new(0.246000007, 0.63499999, -0.451000005, -0.157161966, -0.1847606, -0.970135868, -0.0996441022, 0.980297148, -0.170553446, 0.982533038, 0.0698638037, -0.172475725)
-		local RCF1 = CFrame.new(0.200000003, 0.400000006, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+		local offsets = System.MeshOffsets.ToarBreasts
+		local LCF0, LCF1 = offsets.LCF0, offsets.LCF1
+		local RCF0, RCF1 = offsets.RCF0, offsets.RCF1
 
 		local XM, YM, ZM = Function.MultiplyCalculate(Torso.Size, BodyPartSize[Torso.Name])
 
@@ -12300,13 +12476,13 @@ function RoClothes(Player)
 		Pin.CanQuery = false
 		Pin.CanTouch = false
 		Pin.Massless = true
-		Pin.CustomPhysicalProperties = PhysicalProperties.new(0.0001)
-		Pin.Size = Vector3.new(0.052, 0.269, 0.218)
+		Pin.CustomPhysicalProperties = System.Physics.DefaultProperties
+		Pin.Size = System.Transformation.MeshScale.BunnyBandPin
 
 		local Weld = Instance.new("Weld", Pin)
 		Weld.Part0 = ObjectInstance
 		Weld.Part1 = Pin
-		Weld.C0 = CFrame.new(0.007, 0, -0.593) * CFrame.Angles(0, 0, math.rad(180))
+		Weld.C0 = System.MeshOffsets.BunnyBandPin.WeldC0
 
 		PlayerData[Data].CurrentPartList.RealtimeUpdateList.Mesh[Pin] = {Size = Pin.Size, CFrame = Weld.C0, CFrame1 = CFrame.new(0,0,0), Base = BasePart, Weld = Weld}
 	end
@@ -12519,36 +12695,17 @@ function RoClothes(Player)
 			local Torso = Character:FindFirstChild("Torso")
 
 			if Torso then
-				local Rotation = {
-					X = 2.5,
-					Y = -5,
-					Z = 0
-				}
-				local Position = {
-					X = 0,
-					Y = 0,
-					Z = 0
-				}	
-
 				Function.SpringCreate(
-					ObjectInstance, 
-					Torso, 
-					Vector3.new(0,0,0), 
-					Vector3.new(0,0,0), 
-					8, 
-					0.207, 
-					{
-						X = "X",
-						Y = "Y",
-						Z = "Z",
-					},
-					Position,
-					{
-						X = "Z",
-						Y = "X",
-						Z = "Y",
-					},
-					Rotation,
+					ObjectInstance,
+					Torso,
+					Vector3.new(0,0,0),
+					Vector3.new(0,0,0),
+					System.Physics.SpringConfigs.Breasts.Speed,
+					System.Physics.SpringConfigs.Breasts.Damper,
+					{X="X", Y="Y", Z="Z"},
+					{X=0, Y=0, Z=0},
+					{X="Z", Y="X", Z="Y"},
+					System.Transformation.PhysicsRotation.Breasts,
 					Data
 				)
 			end
@@ -12658,17 +12815,6 @@ function RoClothes(Player)
 				end
 			end
 
-			--[[if PData.HPClothes.Shirt ~= "" and not tonumber(PData.HPClothes.Shirt) then
-				if not PData.HPClothes.Pants then
-					local v = PData.CurrentPartList["Organ"]["Torso"]
-					if v:FindFirstChild(v.Name.. "OILOVERLAY") then
-						local s = v:FindFirstChild(v.Name.. "OILOVERLAY")
-						s.TextureID =  PData.HPClothes.Shirt.ShirtTemplate
-					else
-						Function.ShirtTexture(PData.CurrentPartList["Organ"]["Torso"],c,{Shirt = PData.HPClothes.Shirt},Data)
-					end
-				end
-			end]]
 		else
 			for i, v in pairs(appliedOrgans) do
 				if v:FindFirstChild(v.Name.. "OILOVERLAY") then
@@ -12703,15 +12849,6 @@ function RoClothes(Player)
 				end
 			end
 
-			--[[local v = PData.CurrentPartList["Organ"]["Torso"]
-			if (not c:FindFirstChildOfClass("Pants") or not PData.HPClothes.Pants) and v:FindFirstChildOfClass("SurfaceAppearance") then
-				if v:FindFirstChild(v.Name.. "OILOVERLAY") then
-					local s = v:FindFirstChild(v.Name.. "OILOVERLAY")
-					s:SetAttribute("MaxTransparenyRC",1)
-				else
-					PData.CurrentPartList["Organ"]["Torso"]:FindFirstChildOfClass("SurfaceAppearance"):Destroy()
-				end
-			end]]
 		end
 	end
 
@@ -12797,7 +12934,7 @@ function RoClothes(Player)
 	function Function.ShirtPop(Visible, Character, Data, Clothing)
 		local PData = PlayerData[Data]
 		if Visible == false then
-			
+
 		end
 	end
 
@@ -13113,6 +13250,10 @@ function RoClothes(Player)
 		return parameter and (typeof(parameter) == "CFrame" and parameter or parameter.CFrame) or CFrame.identity
 	end
 
+	function Function.getTailPivotOffsetFromRoot(size)
+		return System.Transformation.r6TailPivotOffset - (size/2)
+	end
+
 	-- Converts a string to a wag seed which is used to desync tails.
 	local function nameToTailWagSeed(name:string):number
 		local wagSeed = 0
@@ -13124,6 +13265,8 @@ function RoClothes(Player)
 
 
 	-- Fast system for checking if an accessory's name is an included accessory.
+	local includedAccessoryNames = {}
+	local excludeAccessoryNames = {}
 	local includedAccessoryNamesValidationSet:{[Instance]:boolean} = {}
 
 	-- The table includedAccessoryNames could have changes and this allows the set to only be computed when necessary.
@@ -13159,20 +13302,19 @@ function RoClothes(Player)
 	end
 
 	-- R6 Torso tail pivot offset.
-	local r6TailPivotOffset = CFrame.new(0, 0.3, 0)
 	-- Gets the tail pivot offset from a root part for both R15 and R6.
 	local function getTailPivotOffsetFromRoot(root:Part):CFrame?
 		if root then
-			-- R15 — LowerTorso and UpperTorso have WaistRigAttachment.
+			-- R15  LowerTorso and UpperTorso have WaistRigAttachment.
 			local waistRigAttachment:Attachment = root:FindFirstChild("WaistRigAttachment")
 			if waistRigAttachment then
 				return waistRigAttachment.CFrame * CFrame.new(0, 0, root.Size.Z * 0.5)
 			end
 
-			-- R6 — Torso.
+			-- R6  Torso.
 			local waistBackAttachment:Attachment = root:FindFirstChild("WaistBackAttachment")
 			if waistBackAttachment then
-				return waistBackAttachment.CFrame * r6TailPivotOffset
+				return waistBackAttachment.CFrame * System.Transformation.CFramePresets.r6TailPivotOffset
 			end
 		end
 	end
@@ -13292,7 +13434,7 @@ function RoClothes(Player)
 
 		local weld:Weld = handle:FindFirstChildOfClass("Weld")
 		if not weld then
-			-- Accessory is most likely still loading. We will just wait until the handle is added.
+			-- Accessory is most likely still loading. We will just wait until the weld is added.
 			handle.ChildAdded:Once(function()
 				setUpTailAccessory(character, accessory, Data)
 			end)
@@ -13315,7 +13457,7 @@ function RoClothes(Player)
 
 	-- Computes a frame of the tail animation.
 	local function getTailAnimationOffset(physicsTail:physicsTail,Data):Vector3
-		local variables = tailVariables[Data]
+		local variables = System.tailVariables[Data]
 		local wagAnimationBlendAlpha = physicsTail.wagAnimationBlendAlpha -- Avoiding table lookups is faster.
 		if physicsTail.angularVelocity.Magnitude > 0.3 then
 			-- Lerp algorithm simplified.
@@ -13393,7 +13535,7 @@ function RoClothes(Player)
 
 	-- Update wind information on change.
 	local workspaceGlobalWindPropertyChangeSignal = workspace:GetPropertyChangedSignal("GlobalWind"):Connect(updateTailPersistantWindForceInformation)
-	table.insert(AllConnect,workspaceGlobalWindPropertyChangeSignal)
+	System.GlobalMaid:Give(workspaceGlobalWindPropertyChangeSignal)
 
 	local gravityForce:Vector3 -- Gravity force.
 	local persistantTailLinearForce:Vector3 -- Linear force.
@@ -13432,7 +13574,7 @@ function RoClothes(Player)
 	-- Update/step a physics tail.
 	local function updatePhysicsTail(physicsTail:physicsTail, updateWeld:boolean, interpolationAlpha:number, Data)
 		local tailSettings = PlayerData[Data].tailSettings
-		local variables = tailVariables[Data]
+		local variables = System.tailVariables[Data]
 
 		-- Get new state of the root part.
 		local rootCFrame = physicsTail.root.CFrame
@@ -13566,7 +13708,7 @@ function RoClothes(Player)
 		end
 		return value,true
 	end
-	
+
 	function Function.toFormatString(value)
 		if typeof(value) == "Color3" then
 			return string.format("Color3.fromRGB(%s, %s, %s)", value.R * 255, value.G * 255, value.B * 255)
@@ -13707,7 +13849,7 @@ function RoClothes(Player)
 							local Handle = cv:FindFirstChildOfClass("Part") or v:FindFirstChildOfClass("MeshPart")
 
 							if Handle then
-								local Weld = Handle:FindFirstChildOfClass("Weld")
+								local Weld = Handle:FindFirstChildOfClass("Weld") or Handle:FindFirstChildOfClass("WeldConstraint")
 
 								if Weld and Weld.Part0 then
 									Weld.Part0 = Dummy:FindFirstChild(Weld.Part0.Name)
@@ -13738,23 +13880,11 @@ function RoClothes(Player)
 	end
 
 	function Function.SpringCreate(Object, Base, Target, Velocity, Speed, Damper, PositionOffset, Position, RotationOffset, Rotation, Data)
+		if not Object then return end
 
-		local Weld = Object:FindFirstChildOfClass("Weld")
+		local Weld = Object:FindFirstChildOfClass("Weld") or Object:FindFirstChildOfClass("WeldConstraint")
 		if Weld then
-			--[[
-			if Base.Name == "Torso" and Weld.Part0 == Base then
-				local invert0 = Weld.Part1.CFrame:ToObjectSpace(Weld.Part1.CFrame:ToWorldSpace(Weld.C1))
-				local invert1 = Weld.Part1.CFrame:ToObjectSpace(Weld.Part1.CFrame:ToWorldSpace(Weld.C0))
-				PlayerData[Data].CurrentPartList.RealtimeUpdateList.Mesh[Object].CFrame = invert0
-				PlayerData[Data].CurrentPartList.RealtimeUpdateList.Mesh[Object].CFrame1 = invert1
-				Weld.Part0 = Object
-				Weld.Part1 = Base
-				Weld.C0 = invert0
-				Weld.C1 = invert1
-				
-			end
-			]]
-			local CF = Weld.C0
+				local CF = Weld.C0
 			local CF1 = Weld.C1
 
 			local Spring = Function.Spring.new(Vector3.new(0,0,0))
@@ -13799,8 +13929,8 @@ function RoClothes(Player)
 
 	function Function.UIStrokeCreate(Parent)
 		local UIStroke = Instance.new("UIStroke")
-		UIStroke.Color = Color3.fromRGB(255,255,255)
-		UIStroke.Thickness = 2
+		UIStroke.Color = Color3.fromRGB(255, 255, 255)
+		UIStroke.Thickness = 1
 		UIStroke.Transparency = 0
 		UIStroke.Parent = Parent
 		return UIStroke
@@ -13818,29 +13948,28 @@ function RoClothes(Player)
 
 		local UIAspectRatioConstraint = Instance.new("UIAspectRatioConstraint")
 		local UICorner_2 = Instance.new("UICorner")
-		local UIGradient_2 = Instance.new("UIGradient")
 
 		Button.Name = ButtonName
 		Button.Parent = ButtonParent
-		Button.BackgroundColor3 = Color3.fromRGB(6, 0, 76)
+		Button.BackgroundColor3 = Color3.fromRGB(20, 17, 32)
 		Button.BorderColor3 = Color3.fromRGB(0, 0, 0)
 		Button.Position = UDim2.new(0.784810185, 0, 0.866666734, 0)
 		Button.Size = UDim2.new(0, 200, 0, 50)
 
 		UIAspectRatioConstraint.Parent = Button
 
-		UICorner_2.CornerRadius = UDim.new(0.25, 0)
+		UICorner_2.CornerRadius = UDim.new(0.12, 0)
 		UICorner_2.Parent = Button
 
 		Button_2.Parent = Button
 		Button_2.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 		Button_2.BackgroundTransparency = 1.000
 		Button_2.Size = UDim2.new(1, 0, 1, 0)
-		Button_2.Font = Enum.Font.Code
-		Button_2.TextColor3 = Color3.fromRGB(255, 255, 255)
+		Button_2.Font = Enum.Font.GothamMedium
+		Button_2.TextColor3 = Color3.fromRGB(210, 210, 225)
 		Button_2.TextScaled = true
 		Button_2.TextSize = 14.000
-		Button_2.TextStrokeTransparency = 0.000
+		Button_2.TextStrokeTransparency = 1.000
 		Button_2.TextWrapped = true
 
 		if IsTextbox and TextboxOption then
@@ -13850,10 +13979,6 @@ function RoClothes(Player)
 		else
 			Button_2.Text = ButtonName
 		end
-
-		UIGradient_2.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(48, 48, 48)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 255, 255))}
-		UIGradient_2.Rotation = -90
-		UIGradient_2.Parent = Button
 
 		Function.UIStrokeCreate(Button)
 
@@ -13880,25 +14005,25 @@ function RoClothes(Player)
 
 		Button.Name = ButtonName
 		Button.Parent = ButtonParent
-		Button.BackgroundColor3 = Color3.fromRGB(6, 0, 76)
+		Button.BackgroundColor3 = Color3.fromRGB(20, 17, 32)
 		Button.BorderColor3 = Color3.fromRGB(0, 0, 0)
 		Button.Position = UDim2.new(0.784810185, 0, 0.866666734, 0)
 		Button.Size = UDim2.new(0, 200, 0, 50)
 
 		UIAspectRatioConstraint.Parent = Button
 
-		UICorner_2.CornerRadius = UDim.new(0.25, 0)
+		UICorner_2.CornerRadius = UDim.new(0.12, 0)
 		UICorner_2.Parent = Button
 
 		Button_2.Parent = Button
 		Button_2.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 		Button_2.BackgroundTransparency = 1.000
 		Button_2.Size = UDim2.new(1, 0, 1, 0)
-		Button_2.Font = Enum.Font.Code
-		Button_2.TextColor3 = Color3.fromRGB(255, 255, 255)
+		Button_2.Font = Enum.Font.GothamMedium
+		Button_2.TextColor3 = Color3.fromRGB(210, 210, 225)
 		Button_2.TextScaled = true
 		Button_2.TextSize = 14.000
-		Button_2.TextStrokeTransparency = 0.000
+		Button_2.TextStrokeTransparency = 1.000
 		Button_2.TextWrapped = true
 
 		Function.UIStrokeCreate(Button)
@@ -13968,7 +14093,31 @@ function RoClothes(Player)
 	end
 
 	local printed={}
-	function Function.Weld(MeshDetail, Character, Extra, Data)
+
+	-- V4.3.49: Weld re-clone rate limiter — prevents CPU lockup when a game destroys our welds every frame.
+	-- Budget is per-container, weakly referenced so GC can collect entries when the Part is destroyed.
+	-- V4.3.50: reCloneBudget / RECLONE_* moved to file scope (see top of file) for register-cap reasons.
+	function Function.TryRecloneWeld(container, weldChild)
+		if not container or not container.Parent or not weldChild then return false end
+		local state = reCloneBudget[container]
+		local now = os.clock()
+		if not state then
+			state = {count = 0, windowStart = now}
+			reCloneBudget[container] = state
+		end
+		if now - state.windowStart > RECLONE_WINDOW_SECONDS then
+			state.count = 0
+			state.windowStart = now
+		end
+		if state.count >= RECLONE_MAX_PER_WINDOW then
+			return false
+		end
+		state.count += 1
+		weldChild:Clone().Parent = container
+		return true
+	end
+
+	function Function.Weld(MeshDetail, Character, Extra, Data, RequestID)
 		if Character.Parent ~= nil then
 			setmetatable(MeshDetail, MetaClothes)
 
@@ -14051,28 +14200,34 @@ function RoClothes(Player)
 								Part.CanQuery = false
 								Part.CanTouch = false
 								Part.Massless = true
-								Part.CustomPhysicalProperties = PhysicalProperties.new(0.0001)
+								Part.CustomPhysicalProperties = System.Physics.DefaultProperties
 								Part.Color = v.Color
 
 								local Weld = Instance.new("Weld", Part)
-								Weld.Part0 = v
 								Weld.Part1 = Part
 
 								if Part.Name == "HumanoidRootPart" then
+									if CharacterValue.Value:FindFirstChild("Torso") then
+										Weld.Part0 = CharacterValue.Value:FindFirstChild("Torso")
+									else
+										Weld.Part0 = v
+									end
 									Character.PrimaryPart = Part
+								else
+									Weld.Part0 = v
 								end
 
 								local detectRemoval
 								detectRemoval = Part.ChildRemoved:Connect(function(c)
 									if Part.Parent ~= nil then
 										if c:IsA("Weld") and c.Part0 == v then
-											c:Clone().Parent = Part
+											Function.TryRecloneWeld(Part, c)
 										end
 									else
-										detectRemoval:Disconnect()
+										System.GlobalMaid:Remove(detectRemoval)
 									end
 								end)
-								table.insert(AllConnect,detectRemoval)
+								System.GlobalMaid:Give(detectRemoval)
 							end
 						end
 					end
@@ -14169,7 +14324,17 @@ function RoClothes(Player)
 					if MESHID == "Parent" then
 						MESHID = Parent.MeshId
 					end
-					ObjectInstance = IS:CreateMeshPartAsync(MESHID, Enum.CollisionFidelity.Box, Enum.RenderFidelity.Performance)
+					local resolvedMeshId = MESHID
+					if MESHID:sub(1, 12) == "rbxasset://" then
+						resolvedMeshId = System.getcustomasset(MESHID:gsub("rbxasset://", ""))
+					end
+					local meshOk
+					meshOk, ObjectInstance = pcall(IS.CreateMeshPartAsync, IS, resolvedMeshId, Enum.CollisionFidelity.Box, Enum.RenderFidelity.Performance)
+					if not meshOk then
+						warn("[RoClothes] CreateMeshPartAsync failed for mesh:", MESHID)
+						return nil
+					end
+					if RequestID and RequestID ~= PlayerData[Data].LastRequestID then return nil end
 					ObjectInstance:AddTag("RoClothes")
 
 					ObjectInstance.TextureID = TEXTUREID
@@ -14201,18 +14366,18 @@ function RoClothes(Player)
 				end
 
 				ObjectInstance.Color = Color
-				
+
 				ObjectInstance.CanCollide = false
 				ObjectInstance.CanQuery = false
 				ObjectInstance.CanTouch = false
 				ObjectInstance.Massless = true
-				ObjectInstance.CustomPhysicalProperties = PhysicalProperties.new(0.0001)
+				ObjectInstance.CustomPhysicalProperties = System.Physics.DefaultProperties
 
 				ObjectInstance.Name = NAME
 				ObjectInstance.Transparency = TRANSPARENCY
 				ObjectInstance.Reflectance = REFLECTANCE
 				ObjectInstance.Material = MATERIAL
-				
+
 				if Parent and not Function.IsParentNil(Parent) and not Function.FallenPartCheck(Parent) then
 					ObjectInstance.CFrame = Parent.CFrame
 				end
@@ -14231,13 +14396,13 @@ function RoClothes(Player)
 				detectRemoval = ObjectInstance.ChildRemoved:Connect(function(c)
 					if ObjectInstance.Parent ~= nil then
 						if c:IsA("Weld") and c.Part1 == ObjectInstance then
-							c:Clone().Parent = ObjectInstance
+							Function.TryRecloneWeld(ObjectInstance, c)
 						end
 					else
-						detectRemoval:Disconnect()
+						System.GlobalMaid:Remove(detectRemoval)
 					end
 				end)
-				table.insert(AllConnect,detectRemoval)
+				System.GlobalMaid:Give(detectRemoval)
 
 
 
@@ -14260,6 +14425,7 @@ function RoClothes(Player)
 					end
 				end
 				PlayerData[Data].CurrentPartList.RealtimeUpdateList.Mesh[ObjectInstance] = {Size = SIZE, CFrame = CFRAME, CFrame1 = CFRAME1, Base = BodyPart, Weld = WeldInstance}
+				PlayerData[Data].ExecutionMaid:Give(ObjectInstance)
 				return ObjectInstance
 			end 
 		end
@@ -14268,44 +14434,46 @@ function RoClothes(Player)
 
 	function Function.CharacterFunction(Character, Data)
 		local CharacterAttachment = {}
+		local CollectedAccessories = {}
 
 		for _, v in pairs(Character:GetDescendants()) do
-			if v:IsA("Attachment") and v.Parent.Name ~= "Handle" and BodyPartSize[v.Parent.Name] and not CharacterAttachment[v.Name] then
+			if v:IsA("Attachment") and v.Parent.Name ~= "Handle" and System.BodyPartSize[v.Parent.Name] and not CharacterAttachment[v.Name] then
 				CharacterAttachment[v.Name] = v
+			elseif v:IsA("Accessory") then
+				table.insert(CollectedAccessories, v)
 			end
 		end
 
-		for _, v in pairs(Character:GetDescendants()) do
-			if v:IsA("Accessory") then
-				local Handle = v:FindFirstChildOfClass("Part") or v:FindFirstChildOfClass("MeshPart")
+		-- Process accessories after the single pass (CharacterAttachment is now fully populated)
+		for _, v in pairs(CollectedAccessories) do
+			local Handle = v:FindFirstChildOfClass("Part") or v:FindFirstChildOfClass("MeshPart")
 
-				if Handle then
-					if PlayerData[Data].CurrentBundle ~= "nil" then
-						--Handle.Transparency = 1
+			if Handle then
+				if PlayerData[Data].CurrentBundle ~= "nil" then
+					--Handle.Transparency = 1
 
-						PlayerData[Data].CurrentPartList.ParentTransparency[Handle] = {D = 0, T = 1}
-					else
-						local Attachment = Handle:FindFirstChildOfClass("Attachment")
-						if Attachment then
-							local SpecialMesh = Handle:FindFirstChildOfClass("SpecialMesh")
-							local Weld = Handle:FindFirstChildOfClass("Weld")
-							local ParentAttachment = CharacterAttachment[Attachment.Name]
+					PlayerData[Data].CurrentPartList.ParentTransparency[Handle] = {D = 0, T = 1}
+				else
+					local Attachment = Handle:FindFirstChildOfClass("Attachment")
+					if Attachment then
+						local SpecialMesh = Handle:FindFirstChildOfClass("SpecialMesh")
+						local Weld = Handle:FindFirstChildOfClass("Weld") or Handle:FindFirstChildOfClass("WeldConstraint")
+						local ParentAttachment = CharacterAttachment[Attachment.Name]
 
-							if Weld and SpecialMesh and ParentAttachment and Attachment then
+						if Weld and SpecialMesh and ParentAttachment and Attachment then
 
-								local HandleParent = ParentAttachment.Parent
-								local Size = HandleParent.Size
-								local HandleSize = Handle.Size
+							local HandleParent = ParentAttachment.Parent
+							local Size = HandleParent.Size
+							local HandleSize = Handle.Size
 
-								if Size and BodyPartSize[HandleParent.Name] then
-									local XMultiply, YMultiply, ZMultiply = Function.MultiplyCalculate(Size, BodyPartSize[HandleParent.Name])
+							if Size and BodyPartSize[HandleParent.Name] then
+								local XMultiply, YMultiply, ZMultiply = Function.MultiplyCalculate(Size, BodyPartSize[HandleParent.Name])
 
-									local AttachCF = Attachment.CFrame
-									local PAttachCF = AttachmentCFrame[ParentAttachment.Name]
-									local Scale = SpecialMesh.Scale
+								local AttachCF = Attachment.CFrame
+								local PAttachCF = System.AttachmentCFrame[ParentAttachment.Name]
+								local Scale = SpecialMesh.Scale
 
-									PlayerData[Data].CurrentPartList.RealtimeUpdateList.Accessory[Handle] = {Scale = Scale, SpecialMesh = SpecialMesh, Size = Size, CFrame = AttachCF, Attachment = Attachment, ParentAttachment = ParentAttachment, Base = HandleParent, Weld = Weld}
-								end
+								PlayerData[Data].CurrentPartList.RealtimeUpdateList.Accessory[Handle] = {Scale = Scale, SpecialMesh = SpecialMesh, Size = Size, CFrame = AttachCF, Attachment = Attachment, ParentAttachment = ParentAttachment, Base = HandleParent, Weld = Weld}
 							end
 						end
 					end
@@ -14315,6 +14483,15 @@ function RoClothes(Player)
 
 		return CharacterAttachment
 	end
+
+	local BodyColorPart = {
+		HeadColor3 = "Head",
+		TorsoColor3 = "Torso",
+		LeftArmColor3 = "Left Arm",
+		RightArmColor3 = "Right Arm",
+		LeftLegColor3 = "Left Leg",
+		RightLegColor3 = "Right Leg",
+	}
 
 	function Function.BodyColorForceSet(Character, Color)
 		for i, v in pairs(BodyColorPart) do
@@ -14337,26 +14514,34 @@ function RoClothes(Player)
 	end
 
 	function Function.BodyColorsFunction(Character, SelectBundle, Data)
-		if Bundle[SelectBundle]["Body Color"] ~= nil and PlayerData[Data].BundleBodyColor then
-			local BodyColors = Character:FindFirstChildOfClass("BodyColors") or Instance.new("BodyColors", Character)
+		if Bundle[SelectBundle] and Bundle[SelectBundle]["Body Color"] ~= nil and PlayerData[Data].BundleBodyColor then
+			local RealChar = PlayerData[Data].RealCharacter or Character
+			local RealBodyColors = RealChar:FindFirstChildOfClass("BodyColors")
 
+			if not PlayerData[Data].OriginalBodyColors and RealBodyColors then
+				PlayerData[Data].OriginalBodyColors = {
+					HeadColor3     = RealBodyColors.HeadColor3,
+					TorsoColor3    = RealBodyColors.TorsoColor3,
+					LeftArmColor3  = RealBodyColors.LeftArmColor3,
+					RightArmColor3 = RealBodyColors.RightArmColor3,
+					LeftLegColor3  = RealBodyColors.LeftLegColor3,
+					RightLegColor3 = RealBodyColors.RightLegColor3,
+				}
+			end
+
+			local BodyColors = Character:FindFirstChildOfClass("BodyColors") or Instance.new("BodyColors", Character)
 			for i, v in pairs(Bundle[SelectBundle]["Body Color"]) do
 				BodyColors[i] = v
 			end
-
 			Function.BodyColorSet(Character, BodyColors)
 
-			--[[if Method == 2 and Character:FindFirstChildOfClass("ObjectValue") then
-				Character = Character:FindFirstChildOfClass("ObjectValue").Value
-
-				local BodyColors = Character:FindFirstChildOfClass("BodyColors") or Instance.new("BodyColors", Character)
-
+			if RealChar ~= Character then
+				local RealBC = RealChar:FindFirstChildOfClass("BodyColors") or Instance.new("BodyColors", RealChar)
 				for i, v in pairs(Bundle[SelectBundle]["Body Color"]) do
-					BodyColors[i] = v
+					RealBC[i] = v
 				end
-
-				Function.BodyColorSet(Character, BodyColors)
-			end]]
+				Function.BodyColorSet(RealChar, RealBC)
+			end
 		end
 	end
 
@@ -14366,6 +14551,8 @@ function RoClothes(Player)
 		local CAttachment = CHandle:FindFirstChildOfClass("Attachment")
 		local CSpecialMesh = CHandle:FindFirstChildOfClass("SpecialMesh")
 		CAccessory:AddTag("RoClothes")
+		Function.ApplyAssets(CAccessory)
+		PlayerData[Data].ExecutionMaid:Give(CAccessory)
 
 		PlayerData[Data].CurrentPartList["Accessory"][CAccessory] = CAccessory
 
@@ -14442,9 +14629,17 @@ function RoClothes(Player)
 			local PAttachCF = AttachmentCFrame[CParentAttachment.Name]
 			local Scale = CSpecialMesh.Scale
 
+			if PlayerData[Data].OriginalAttachmentCFrames == nil then
+				PlayerData[Data].OriginalAttachmentCFrames = {}
+			end
+			if PlayerData[Data].OriginalAttachmentCFrames[CParentAttachment] == nil then
+				PlayerData[Data].OriginalAttachmentCFrames[CParentAttachment] = CParentAttachment.CFrame
+			end
+
 			if PlayerData[Data].AccessorySizeLock == false then
 				CHandle.Size = Vector3.new(HandleSize.X * XMultiply, HandleSize.Y * YMultiply, HandleSize.Z * ZMultiply)
-				CSpecialMesh.Scale = Vector3.new(Scale.X * XMultiply, Scale.Y * YMultiply, Scale.Z * ZMultiply)CAttachment.CFrame = CFrame.new(CAttachCF.Position.X * XMultiply, CAttachCF.Position.Y * YMultiply, CAttachCF.Position.Z * ZMultiply) * CAttachCF.Rotation
+				CSpecialMesh.Scale = Vector3.new(Scale.X * XMultiply, Scale.Y * YMultiply, Scale.Z * ZMultiply)
+				CAttachment.CFrame = CFrame.new(CAttachCF.Position.X * XMultiply, CAttachCF.Position.Y * YMultiply, CAttachCF.Position.Z * ZMultiply) * CAttachCF.Rotation
 				if not PlayerData[Data].CurrentPartList.physicsTails[CAccessory] then
 					CParentAttachment.CFrame = CFrame.new(PAttachCF.Position.X * XMultiply, PAttachCF.Position.Y * YMultiply, PAttachCF.Position.Z * ZMultiply) * PAttachCF.Rotation
 				end
@@ -14452,16 +14647,16 @@ function RoClothes(Player)
 				CHandle.Size = HandleSize
 				CSpecialMesh.Scale = Scale
 			end
-			
+
 			CHandle.CanCollide = false
 			CHandle.CanQuery = false
 			CHandle.CanTouch = false
 			CHandle.Massless = true
-			CHandle.CustomPhysicalProperties = PhysicalProperties.new(0.0001)
+			CHandle.CustomPhysicalProperties = System.Physics.DefaultProperties
 
 			CAccessory.Parent = Character
 			v:Destroy()
-			
+
 			CHandle.CFrame = CParentAttachment.Parent.CFrame
 			local Weld = Instance.new("Weld", CHandle)
 			Weld.Part0 = CHandle
@@ -14474,10 +14669,12 @@ function RoClothes(Player)
 			detectRemoval = CHandle.ChildRemoved:Connect(function(c)
 				if CHandle.Parent ~= nil then
 					if c:IsA("Weld") and c.Part0 == CHandle then
-						c:Clone().Parent = CHandle
+						Function.TryRecloneWeld(CHandle, c)
 					end
 				else
 					detectRemoval:Disconnect()
+					local idx = table.find(AllConnect, detectRemoval)
+					if idx then table.remove(AllConnect, idx) end
 				end
 			end)
 			table.insert(AllConnect,detectRemoval)
@@ -14533,14 +14730,28 @@ function RoClothes(Player)
 		return IsAdded
 	end
 
-	function Function.HumanoidDescriptionLoader(Character, HumanoidDescription, CharacterAttachment, UseBodyColor, Data, isCatalogUsername, oChar, tailCheck)
+	function Function.HumanoidDescriptionLoader(Character, HumanoidDescription, CharacterAttachment, UseBodyColor, Data, isCatalogUsername, oChar, tailCheck, RequestID)
 		local AccessoryLoaderModel = Instance.new("Model", game)
 		AccessoryLoaderModel.Archivable = not hidden
 		AccessoryLoaderModel:AddTag("RoClothes")
 		local HumanoidAccessoryLoader = Instance.new("Humanoid", AccessoryLoaderModel)
 
 		HumanoidAccessoryLoader:ApplyDescription(HumanoidDescription)
-		repeat task.wait() until #AccessoryLoaderModel:GetChildren() > 2
+		-- Timeout guard to prevent infinite hang if ApplyDescription never populates
+		local waitCount = 0
+		repeat task.wait() waitCount += 1 until #AccessoryLoaderModel:GetChildren() > 2 or waitCount >= 200
+		if waitCount >= 200 then
+			warn("[RoClothes] HumanoidDescriptionLoader timed out waiting for accessories")
+			AccessoryLoaderModel:Destroy()
+			HumanoidDescription:Destroy()
+			return
+		end
+
+		if RequestID and RequestID ~= PlayerData[Data].LastRequestID then
+			AccessoryLoaderModel:Destroy()
+			HumanoidDescription:Destroy()
+			return
+		end
 
 		for _, v in pairs(AccessoryLoaderModel:GetChildren()) do
 			if v:IsA("Accessory") then
@@ -14549,15 +14760,6 @@ function RoClothes(Player)
 				end
 				Function.AccessoryAdd(Character, v, CharacterAttachment, Data)
 			elseif v:IsA("Shirt") or v:IsA("Pants") or v:IsA("ShirtGraphic") then
-				--[[if DecalCheck then
-					if v:IsA("Shirt") and DecalCheck[1] ~= nil then
-						v.ShirtTemplate = "rbxassetid://".. DecalCheck[1]
-					elseif v:IsA("Pants") and DecalCheck[2] ~= nil then
-						v.PantsTemplate = "rbxassetid://".. DecalCheck[2]
-					elseif v:IsA("ShirtGraphic") and DecalCheck[3] ~= nil then
-						v.Graphic = "rbxassetid://".. DecalCheck[3]
-					end
-				end]]
 				local function convertId(id)
 					local success, decalObjecct = pcall(function()
 						local decalObjecct = game:GetObjects("rbxassetid://"..id)[1]
@@ -14565,8 +14767,9 @@ function RoClothes(Player)
 					end)
 					if success and decalObjecct:IsA("Decal") then
 						return decalObjecct.Texture
-					elseif string.gsub(id,"%D","") == id then
-						warn("Clothing ID ".. id.. " returned as invalid clothing! Decal method was detected invalid as well.")
+					elseif string.gsub(id,"%D","") == tostring(id) then
+						warn("Clothing ID ".. id.. " returned as invalid clothing! Decal method was detected invalid as well."..
+							" If you're using an image ID, this is a false positive.")
 						return "rbxassetid://".. id
 					else
 						return id
@@ -14619,13 +14822,13 @@ function RoClothes(Player)
 					newHead.CanQuery = false
 					newHead.CanTouch = false
 					newHead.Massless = true
-					newHead.CustomPhysicalProperties = PhysicalProperties.new(0.0001)
+					newHead.CustomPhysicalProperties = System.Physics.DefaultProperties
 					newHead.Color = v.Color
 					newHead.Material = v.Material
 					newHead.Reflectance = v.Reflectance
 					PlayerData[Data].CurrentPartList.Organ["Head"] = newHead
 					PlayerData[Data].CurrentPartList.Link[newHead] = {T=v, Color=v}
-					
+
 					newHead.CFrame = v.CFrame
 					local Weld = Instance.new("Weld", newHead)
 					Weld.Part0 = v
@@ -14687,12 +14890,12 @@ function RoClothes(Player)
 						newHead.CanQuery = false
 						newHead.CanTouch = false
 						newHead.Massless = true
-						newHead.CustomPhysicalProperties = PhysicalProperties.new(0.0001)
+						newHead.CustomPhysicalProperties = System.Physics.DefaultProperties
 						newHead.Color = h.Color
 						newHead.Material = h.Material
 						newHead.Reflectance = h.Reflectance
 						PlayerData[Data].CurrentPartList.Organ["Head"] = newHead
-						
+
 						newHead.CFrame = h.CFrame
 						local Weld = Instance.new("Weld", newHead)
 						Weld.Part0 = h
@@ -14722,7 +14925,7 @@ function RoClothes(Player)
 						if head:FindFirstChildOfClass("Decal") then
 							if OldFC then
 								OldFC.Transparency = 1
-								PlayerData[Data].CurrentPartList.ParentTransparency[OldFC] = {D = 0}
+								PlayerData[Data].CurrentPartList.ParentTransparency[OldFC] = {D = 0,T=1}
 							end
 							local d = head:FindFirstChildOfClass("Decal"):Clone()
 							PlayerData[Data].CurrentPartList.Link[d] = {T=h}
@@ -14730,7 +14933,7 @@ function RoClothes(Player)
 						elseif OldFC then
 							if OldFC then
 								OldFC.Transparency = 1
-								PlayerData[Data].CurrentPartList.ParentTransparency[OldFC] = {D = 0}
+								PlayerData[Data].CurrentPartList.ParentTransparency[OldFC] = {D = 0,T=1}
 							end
 							local o = OldFC:Clone()
 							PlayerData[Data].CurrentPartList.ParentTransparency[o] = {D = 1}
@@ -14739,7 +14942,7 @@ function RoClothes(Player)
 						end
 					elseif OldFC then
 						OldFC.Transparency = 1
-						PlayerData[Data].CurrentPartList.ParentTransparency[OldFC] = {D = 0}
+						PlayerData[Data].CurrentPartList.ParentTransparency[OldFC] = {D = 0,T=1}
 					end
 				else
 					if head:FindFirstChildOfClass("Decal") and PlayerData[Data].Face == true then
@@ -14766,7 +14969,8 @@ function RoClothes(Player)
 		HumanoidDescription:Destroy()
 	end
 
-	function Function.AccessoryLoaderFunction(Character, CharacterAttachment, SelectBundle, Data)
+	function Function.AccessoryLoaderFunction(Character, CharacterAttachment, SelectBundle, Data, RequestID)
+		if not Bundle[SelectBundle] then return end
 		local Human = Character:FindFirstChildOfClass("Humanoid")
 
 		local HumanoidDescription = Instance.new("HumanoidDescription", game)
@@ -14777,18 +14981,18 @@ function RoClothes(Player)
 
 		if IsAdded == true then
 
-			Function.HumanoidDescriptionLoader(Character, HumanoidDescription, CharacterAttachment, false, Data)
+			Function.HumanoidDescriptionLoader(Character, HumanoidDescription, CharacterAttachment, false, Data, nil, nil, nil, RequestID)
 		end
 		if IsTail == true then
 
-			Function.HumanoidDescriptionLoader(Character, HumanoidDescriptionTail, CharacterAttachment, false, Data, nil, nil, true)
+			Function.HumanoidDescriptionLoader(Character, HumanoidDescriptionTail, CharacterAttachment, false, Data, nil, nil, true, RequestID)
 		end
 
 		HumanoidDescription:Destroy()
 		HumanoidDescriptionTail:Destroy()
 	end
 
-	function Function.CatalogLoader(Character, CharacterAttachment, Data, oChar)
+	function Function.CatalogLoader(Character, CharacterAttachment, Data, oChar, RequestID)
 		local Human = Character:FindFirstChildOfClass("Humanoid")
 
 		--[[local DecalInfo
@@ -14799,8 +15003,10 @@ function RoClothes(Player)
 
 			pcall(function()
 				local UsernameId = PS:GetUserIdFromNameAsync(PlayerData[Data].CatalogUsername)
+				if RequestID and RequestID ~= PlayerData[Data].LastRequestID then return end
 
 				local HumanoidDescription = PS:GetHumanoidDescriptionFromUserId(UsernameId)
+				if RequestID and RequestID ~= PlayerData[Data].LastRequestID then return end
 
 				for Type, Id in pairs(PlayerData[Data].CatalogClothes) do
 					if Id ~= "" then
@@ -14816,22 +15022,30 @@ function RoClothes(Player)
 
 				if #PlayerData[Data].CatalogRemove > 0 then
 					local accessories = HumanoidDescription:GetAccessories(true)
+					local removeSet = {}
 					for _, remove in pairs(PlayerData[Data].CatalogRemove) do
-						for asset, accessory in pairs(accessories) do
-							if accessory.AssetId == remove then
-								table.remove(accessories,asset)
-							end
+						removeSet[remove] = true
+					end
+					local toRemove = {}
+					for idx, accessory in ipairs(accessories) do
+						if removeSet[accessory.AssetId] then
+							table.insert(toRemove, 1, idx)
 						end
+					end
+					for _, idx in ipairs(toRemove) do
+						table.remove(accessories, idx)
 					end
 					HumanoidDescription:SetAccessories(accessories,true)
 				end
 
-				Function.HumanoidDescriptionLoader(Character, HumanoidDescription, CharacterAttachment, true, Data, true, oChar)
+				Function.HumanoidDescriptionLoader(Character, HumanoidDescription, CharacterAttachment, true, Data, true, oChar, nil, RequestID)
 			end)
 		end
+		if RequestID and RequestID ~= PlayerData[Data].LastRequestID then return end
 		if PlayerData[Data].CatalogOutfitId ~= "" then
 			pcall(function()
 				local HumanoidDescription =  PS:GetHumanoidDescriptionFromOutfitId(PlayerData[Data].CatalogOutfitId)
+				if RequestID and RequestID ~= PlayerData[Data].LastRequestID then return end
 
 				for Type, Id in pairs(PlayerData[Data].CatalogClothes) do
 					if Id ~= "" then
@@ -14847,19 +15061,26 @@ function RoClothes(Player)
 
 				if #PlayerData[Data].CatalogRemove > 0 then
 					local accessories = HumanoidDescription:GetAccessories(true)
+					local removeSet = {}
 					for _, remove in pairs(PlayerData[Data].CatalogRemove) do
-						for asset, accessory in pairs(accessories) do
-							if accessory.AssetId == remove then
-								table.remove(accessories,asset)
-							end
+						removeSet[remove] = true
+					end
+					local toRemove = {}
+					for idx, accessory in ipairs(accessories) do
+						if removeSet[accessory.AssetId] then
+							table.insert(toRemove, 1, idx)
 						end
+					end
+					for _, idx in ipairs(toRemove) do
+						table.remove(accessories, idx)
 					end
 					HumanoidDescription:SetAccessories(accessories,true)
 				end
 
-				Function.HumanoidDescriptionLoader(Character, HumanoidDescription, CharacterAttachment, true, Data, true, oChar)
+				Function.HumanoidDescriptionLoader(Character, HumanoidDescription, CharacterAttachment, true, Data, true, oChar, nil, RequestID)
 			end)
 		end
+		if RequestID and RequestID ~= PlayerData[Data].LastRequestID then return end
 		local HumanoidDescription = Instance.new("HumanoidDescription", game.Workspace)
 		local HumanoidDescriptionTail = Instance.new("HumanoidDescription", game.Workspace)
 
@@ -14867,12 +15088,12 @@ function RoClothes(Player)
 		local IsTail = Function.HumanoidDescriptionSet(PlayerData[Data].CatalogTail, nil, HumanoidDescriptionTail)
 
 		if IsAdded == true then
-			Function.HumanoidDescriptionLoader(Character, HumanoidDescription, CharacterAttachment, false, Data, nil, nil)
+			Function.HumanoidDescriptionLoader(Character, HumanoidDescription, CharacterAttachment, false, Data, nil, nil, nil, RequestID)
 		else
 			HumanoidDescription:Destroy()
 		end
 		if IsTail == true then
-			Function.HumanoidDescriptionLoader(Character, HumanoidDescriptionTail, CharacterAttachment, false, Data, nil, nil, true)
+			Function.HumanoidDescriptionLoader(Character, HumanoidDescriptionTail, CharacterAttachment, false, Data, nil, nil, true, RequestID)
 		else
 			HumanoidDescriptionTail:Destroy()
 		end
@@ -14916,10 +15137,10 @@ function RoClothes(Player)
 		end
 		--[[ below if is for ClickExecute
 		if type(PlayerName) ~= "string" and Function.IsCharacter(PlayerName) then
-			if Function.TableFind(NPCs, PlayerName) == nil then
+			if Function.TableFind(System.NPCs, PlayerName) == nil then
 				return
 			else
-				local NPC = Function.TableFind(NPCs, PlayerName)
+				local NPC = Function.TableFind(System.NPCs, PlayerName)
 				for i, v in pairs(PlayerName:GetDescendants()) do
 					if v.ClassName == "MeshPart" or v:HasTag("RoClothes") then
 						if v.Parent == PlayerName:FindFirstChild("Torso") or v.Parent == PlayerName:FindFirstChild("Left Leg") or v.Parent == PlayerName:FindFirstChild("Right Leg") or
@@ -14939,30 +15160,27 @@ function RoClothes(Player)
 					end
 				end
 				if NPCClear == true then
-					PlayerData[Function.TableFind(NPCs, PlayerName)] = nil
+					PlayerData[Function.TableFind(System.NPCs, PlayerName)] = nil
 				end
 			end
 			return
 		end]]
 
 		if type(PlayerName) ~= "string" and Function.IsCharacter(PlayerName) then
-			if Function.TableFind(NPCs, PlayerName) == nil or not PlayerData[Function.TableFind(NPCs, PlayerName)] then
+			local npcIdx = Function.TableFind(System.NPCs, PlayerName)
+			if npcIdx == nil or not PlayerData[npcIdx] then
 				return
 			else
-				DataList = PlayerData[Function.TableFind(NPCs, PlayerName)]
+				DataList = PlayerData[npcIdx]
 				PartListPlayer = DataList.CurrentPartList
 				if NPCClear == true then
-					PlayerData[Function.TableFind(NPCs, PlayerName)] = nil
+					PlayerData[npcIdx] = nil
 				end
 			end
 		end
 
-		if DataList["Cooldown"] == true then
-			return
-		end
-
 		if PartListPlayer then
-			local SpecialList = PartListPlayer.RealtimeUpdateList["Special"]
+			local SpecialList = PartListPlayer.RealtimeUpdateList and PartListPlayer.RealtimeUpdateList["Special"]
 			local OrganList = PartListPlayer["Organ"]
 			local ClothesList = PartListPlayer["Clothes"]
 			local AccessoryList = PartListPlayer["Accessory"]
@@ -15001,7 +15219,7 @@ function RoClothes(Player)
 					end
 				end
 			end
-			
+
 			if PartListPlayer.OriginalTransparency then
 				for i, v in pairs(PartListPlayer.OriginalTransparency) do
 					i.Transparency = v
@@ -15009,7 +15227,107 @@ function RoClothes(Player)
 				end
 			end
 
+			local char = DataList.Character
+			if not char then
+				if type(PlayerName) ~= "string" and Function.IsCharacter(PlayerName) then
+					char = PlayerName
+				elseif game:GetService("Players"):FindFirstChild(PlayerName) then
+					char = game:GetService("Players"):FindFirstChild(PlayerName).Character
+				end
+			end
+
+			local realChar = DataList.RealCharacter or char
+			local bodyParts = {
+				"Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg",
+				"UpperTorso", "LowerTorso", "LeftUpperArm", "LeftLowerArm", "LeftHand",
+				"RightUpperArm", "RightLowerArm", "RightHand", "LeftUpperLeg", "LeftLowerLeg",
+				"LeftFoot", "RightUpperLeg", "RightLowerLeg", "RightFoot"
+			}
+			if realChar then
+				for _, partName in ipairs(bodyParts) do
+					local p = realChar:FindFirstChild(partName)
+					if p and p:IsA("BasePart") then
+						p.Transparency = 0
+						p.LocalTransparencyModifier = 0
+					end
+				end
+			end
+			if char and char ~= realChar then
+				for _, partName in ipairs(bodyParts) do
+					local p = char:FindFirstChild(partName)
+					if p and p:IsA("BasePart") then
+						p.Transparency = 0
+						p.LocalTransparencyModifier = 0
+					end
+				end
+			end
+
+			-- Restore original body colors
+			local restoreTarget = DataList.RealCharacter or char
+			if DataList.OriginalBodyColors and restoreTarget then
+				local BodyColors = restoreTarget:FindFirstChildOfClass("BodyColors")
+				if BodyColors then
+					for prop, color in pairs(DataList.OriginalBodyColors) do
+						BodyColors[prop] = color
+					end
+					Function.BodyColorSet(restoreTarget, BodyColors)
+				end
+				-- Also restore on proxy if different
+				if char and char ~= restoreTarget then
+					local proxyBC = char:FindFirstChildOfClass("BodyColors")
+					if proxyBC then
+						for prop, color in pairs(DataList.OriginalBodyColors) do
+							proxyBC[prop] = color
+						end
+						Function.BodyColorSet(char, proxyBC)
+					end
+				end
+				DataList.OriginalBodyColors = nil
+			end
+			DataList.RealCharacter = nil
+
+			if DataList.NippleColorFromBundle then
+				DataList.NippleColor = nil
+				DataList.NippleColorFromBundle = false
+			end
+
+			-- Restore original Attachment CFrames
+			if DataList.OriginalAttachmentCFrames then
+				for attachment, cframe in pairs(DataList.OriginalAttachmentCFrames) do
+					if attachment and attachment.Parent ~= nil then
+						attachment.CFrame = cframe
+					end
+				end
+				DataList.OriginalAttachmentCFrames = {}
+			end
+
+			-- Destroy ConvertedParts
+			if DataList.ConvertedPart then
+				for name, entry in pairs(DataList.ConvertedPart) do
+					if entry and entry.Part and entry.Part.Parent ~= nil then
+						entry.Part:Destroy()
+					end
+					DataList.ConvertedPart[name] = nil
+				end
+			end
+
+			local targetName = PlayerName
+			if targetName == "Self" then
+				targetName = Player.Name
+			end
+
+			if Method == 2 or Method == 3 then
+				for _, child in pairs(Method2CharacterFolder:GetChildren()) do
+					if child.Name == (targetName or "NIL_FALLBACK") then
+						child:Destroy()
+					end
+				end
+			end
+
+			DataList.CurrentPartList.BodyPartPhysics = {}
+
 			DataList.CurrentPartList = Function.PlayerDataDefault().CurrentPartList
+			DataList["Cooldown"] = false
 
 			--[[
 			if Method == 2 then
@@ -15068,58 +15386,31 @@ function RoClothes(Player)
 
 	function Function.RodPhysics(ObjectInstance, Character, Extra, Data)
 		if PlayerData[Data].BodyPartPhysics then
+			local rotationMappings = System.Transformation.RotationMappings
 			local PhysicsRotationOffset
-			local Rotation = {
-				X = 2,
-				Y = 7,
-				Z = 5
-			}
-			if tostring(ObjectInstance) == "Rod" then
-				Rotation = {
-					X = 2,
-					Y = -7,
-					Z = 5
-				}
-				PhysicsRotationOffset = {
-					X = "X",
-					Y = "Z",
-					Z = "Y",
-				}
-			elseif tostring(ObjectInstance) == "HorseRod" then
-				Rotation = {
-					X = 2,
-					Y = -7,
-					Z = 5
-				}
-				PhysicsRotationOffset = {
-					X = "Y",
-					Y = "X",
-					Z = "Z",
-				}
+			local Rotation = System.Transformation.PhysicsRotation.RodDefault
+
+			if ObjectInstance.Name == "Rod" then
+				Rotation = System.Transformation.PhysicsRotation.Rod
+				PhysicsRotationOffset = rotationMappings.Rod
+			elseif ObjectInstance.Name == "HorseRod" then
+				Rotation = System.Transformation.PhysicsRotation.Rod
+				PhysicsRotationOffset = rotationMappings.HorseRod
 			else
-				PhysicsRotationOffset = {
-					X = "Y",
-					Y = "X",
-					Z = "Z",
-				}
+				PhysicsRotationOffset = rotationMappings.OrganTorso
 			end
+
+			local rodBase = PlayerData[Data].CurrentPartList["Organ"]["Torso"]
+			if not rodBase then return end
 			Function.SpringCreate(
-				ObjectInstance, 
-				PlayerData[Data].CurrentPartList["Organ"]["Torso"], 
-				Vector3.new(0,0,0), 
-				Vector3.new(0,0,0), 
-				10, 
-				0.2, 
-				{
-					X = "X",
-					Y = "Y",
-					Z = "Z",
-				},
-				{
-					X = 0,
-					Y = 0,
-					Z = 0
-				},
+				ObjectInstance,
+				rodBase,
+				Vector3.new(0,0,0),
+				Vector3.new(0,0,0),
+				System.Physics.SpringConfigs.Default.Speed,
+				System.Physics.SpringConfigs.Default.Damper,
+				{X="X", Y="Y", Z="Z"},
+				System.Transformation.PhysicsPosition.Default,
 				PhysicsRotationOffset,
 				Rotation,
 				Data
@@ -15129,69 +15420,44 @@ function RoClothes(Player)
 
 	function Function.BBCBallPhysics(ObjectInstance, Character, Extra, Data)
 		if PlayerData[Data].BodyPartPhysics then
-			local PhysicsRotationOffset
-			local Rotation = {
-				X = 2,
-				Y = 1,
-				Z = 5
-			}
+			local rotationMappings = RotationMappings
 			local Rod
-			if tostring(ObjectInstance) == "BBC Balls" then
+			local PhysicsRotationOffset
+
+			if ObjectInstance.Name == "BBC Balls" then
 				Rod = PlayerData[Data].CurrentPartList["Clothes"]["BBC Rod"]
-				PhysicsRotationOffset = {
-					X = "Y",
-					Y = "X",
-					Z = "Z",
-				}
-			elseif tostring(ObjectInstance) == "ballsKnot" or tostring(ObjectInstance) == "ballsKnotR" then
-				if tostring(ObjectInstance) == "ballsKnot" then
+				PhysicsRotationOffset = rotationMappings.BBCBalls
+			elseif ObjectInstance.Name == "ballsKnot" or ObjectInstance.Name == "ballsKnotR" then
+				if ObjectInstance.Name == "ballsKnot" then
 					Rod = PlayerData[Data].CurrentPartList["Clothes"]["mainKnot"]
 				else
 					Rod = PlayerData[Data].CurrentPartList["Clothes"]["mainKnotRetracted"]
 				end
-				PhysicsRotationOffset = {
-					X = "X",
-					Y = "Y",
-					Z = "Z",
-				}
-			elseif tostring(ObjectInstance) == "HorseBall" then
+				PhysicsRotationOffset = rotationMappings.BallsKnot
+			elseif ObjectInstance.Name == "HorseBall" then
 				Rod = PlayerData[Data].CurrentPartList["Clothes"]["HorseRod"]
-				PhysicsRotationOffset = {
-					X = "Y",
-					Y = "X",
-					Z = "Z",
-				}
+				PhysicsRotationOffset = rotationMappings.HorseBall
 			else
 				Rod = PlayerData[Data].CurrentPartList["Clothes"]["Cock"]
-				PhysicsRotationOffset = {
-					X = "X",
-					Y = "Y",
-					Z = "Z",
-				}
+				PhysicsRotationOffset = rotationMappings.Default
 			end
+
+			if not Rod then return end
 			Function.SpringCreate(
 				ObjectInstance,
-				Rod, 
-				Vector3.new(0,0,0), 
-				Vector3.new(0,0,0), 
-				10, 
-				0.2, 
+				Rod,
+				Vector3.new(0,0,0),
+				Vector3.new(0,0,0),
+				SpringConfigs.Default.Speed,
+				SpringConfigs.Default.Damper,
 				{
 					X = "X",
 					Y = "Y",
 					Z = "Z",
 				},
-				{
-					X = 0,
-					Y = 0,
-					Z = 0
-				},
+				Vector3.new(0,0,0),
 				PhysicsRotationOffset,
-				{
-					X = 2,
-					Y = 1,
-					Z = 5
-				},
+				PhysicsRotation.BBCBalls,
 				Data
 			)
 		end
@@ -15267,12 +15533,12 @@ function RoClothes(Player)
 					Part.CanQuery = false
 					Part.CanTouch = false
 					Part.Massless = true
-					Part.CustomPhysicalProperties = PhysicalProperties.new(0.0001)
+					Part.CustomPhysicalProperties = DefaultProperties
 					Part.Size = R6Size[New]
-					Part.Material = Enum.Material.SmoothPlastic
+					Part.Material = Mappings.SmoothPlastic
 					Part:SetAttribute("Visibility",1)
 					Part:AddTag("Visibility")
-					
+
 					Part.CFrame = BasePart.CFrame
 					local Weld = Instance.new("Weld", Part)
 					Weld.Part0 = BasePart
@@ -15294,18 +15560,33 @@ function RoClothes(Player)
 		end
 	end
 
-	function Function.CharacterExecute(Character, Data, bool)
+	function Function.CharacterExecute(Character, Data, bool, RequestID)
+		local DataDetail = PlayerData[Data]
+		if not DataDetail then return end
 
-		if Character then
+		if DataDetail.ExecutionMaid then
+			DataDetail.ExecutionMaid:DoCleaning()
+		end
+		DataDetail.ExecutionMaid = Maid.new()
 
-			local Human = Character:FindFirstChildOfClass("Humanoid")
-			local Head = Character:FindFirstChild("Head")
-			local FaceDecal = Head and (Head:FindFirstChild("face") or Head:FindFirstChild("Face"))
-			if not Human then
-				return
+		task.defer(function()
+			if RequestID and RequestID ~= DataDetail.LastRequestID then return end
+
+			if not Character or not Function.CharacterIsBuilt(Character) then
+				local count = 0
+				repeat 
+					task.wait(0.2)
+					count = count + 1
+				until Function.CharacterIsBuilt(Character) or count > 10
+				if not Function.CharacterIsBuilt(Character) then return end
 			end
 
-			Function.CharacterReset(Character)
+			if RequestID and RequestID ~= DataDetail.LastRequestID then return end
+
+			local Human = Character:FindFirstChildOfClass("Humanoid")
+			if not Human then return end
+
+			Function.CharacterReset(Data)
 
 			Function.PlayerDataAdd(Data)
 
@@ -15336,20 +15617,15 @@ function RoClothes(Player)
 			local OldCharacter
 			if Method == 2 then
 				OldCharacter = Character
+				DataDetail.RealCharacter = Character
+
+				if RequestID and RequestID ~= DataDetail.LastRequestID then return end
 
 				Character = Method2CharacterFolder:FindFirstChild(Data)
 
 				if Character then
-					for i, v in pairs(Character:GetChildren()) do
-						if Character then
-							if v:IsA("BasePart") and table.find(Method2BodyPart, v.Name) then
-								if OldCharacter:FindFirstChild(v.Name) and (v.Position-OldCharacter:FindFirstChild(v.Name).Position).Magnitude > 2 then
-									Character:Destroy()
-									Character = nil
-								end
-							end
-						end
-					end
+					Character:Destroy()
+					Character = nil
 				end
 
 				if not Character then
@@ -15366,6 +15642,11 @@ function RoClothes(Player)
 					CharacterValue.Value = OldCharacter
 
 					for _, v in pairs(CharacterValue.Value:GetChildren()) do
+							if RequestID and RequestID ~= DataDetail.LastRequestID then 
+							Character:Destroy() -- Self-Cleanup before exit
+							return 
+						end
+
 						if v:IsA("BasePart") and table.find(Method2BodyPart, v.Name) or v.Name == "HumanoidRootPart" then
 							if v.Name ~= "Head" then
 								DataDetail.CurrentPartList.ParentTransparency[v] = {D = v.Transparency,T = 1}
@@ -15379,39 +15660,49 @@ function RoClothes(Player)
 							Part.CanQuery = false
 							Part.CanTouch = false
 							Part.Massless = true
-							Part.CustomPhysicalProperties = PhysicalProperties.new(0.0001)
+							Part.CustomPhysicalProperties = DefaultProperties
 							Part.Color = v.Color
-							
+
 							Part.CFrame = v.CFrame
 							local Weld = Instance.new("Weld", Part)
 							Weld.Part0 = v
 							Weld.Part1 = Part
 
 							if Part.Name == "HumanoidRootPart" then
+								local RootWeldTarget = CharacterValue.Value:FindFirstChild("Torso") or CharacterValue.Value:FindFirstChild("UpperTorso")
+								if RootWeldTarget then
+									Weld.Part0 = RootWeldTarget
+								else
+									Weld.Part0 = v
+								end
 								Character.PrimaryPart = Part
+							else
+								Weld.Part0 = v
 							end
 
 							local detectRemoval
 							detectRemoval = Part.ChildRemoved:Connect(function(c)
 								if Part.Parent ~= nil then
 									if c:IsA("Weld") and c.Part0 == v then
-										c:Clone().Parent = Part
+										Function.TryRecloneWeld(Part, c)
 									end
 								else
-									detectRemoval:Disconnect()
+									GlobalMaid:Remove(detectRemoval)
 								end
 							end)
-							table.insert(AllConnect,detectRemoval)
+							GlobalMaid:Give(detectRemoval)
 						end
 					end
 				end
 				if OldCharacter:FindFirstChildOfClass("Shirt") then
+					if RequestID and RequestID ~= DataDetail.LastRequestID then Character:Destroy() return end
 					if Character:FindFirstChildOfClass("Shirt") then
 						Character:FindFirstChildOfClass("Shirt"):Destroy()
 					end
 					OldCharacter:FindFirstChildOfClass("Shirt"):Clone().Parent = Character
 				end
 				if OldCharacter:FindFirstChildOfClass("Pants") then
+					if RequestID and RequestID ~= DataDetail.LastRequestID then Character:Destroy() return end
 					if Character:FindFirstChildOfClass("Pants") then
 						Character:FindFirstChildOfClass("Pants"):Destroy()
 					end
@@ -15419,21 +15710,26 @@ function RoClothes(Player)
 				end
 			end
 
-			if Bundle[DataDetail.CurrentBundle]["TClothes"] then
+			if Bundle[DataDetail.CurrentBundle] and Bundle[DataDetail.CurrentBundle]["TClothes"] then
 				for i, v in pairs(Bundle[DataDetail.CurrentBundle]["TClothes"]) do
 					DataDetail.HPClothes[i] = v
 				end
 			end
 
-			if Bundle[DataDetail.CurrentBundle]["NippleColor"] and DataDetail.Tone == "Use NippleColor" and DataDetail.NippleColor == nil then
+			if DataDetail.NippleColorFromBundle then
+				DataDetail.NippleColor = nil
+				DataDetail.NippleColorFromBundle = false
+			end
+			if Bundle[DataDetail.CurrentBundle] and Bundle[DataDetail.CurrentBundle]["NippleColor"] and DataDetail.Tone == "Use NippleColor" then
 				DataDetail.NippleColor = Bundle[DataDetail.CurrentBundle]["NippleColor"]
+				DataDetail.NippleColorFromBundle = true
 			end
 
 			local TShirt = Character:FindFirstChildOfClass("ShirtGraphic")
 			local Shirt = Character:FindFirstChildOfClass("Shirt")
 			local Pants = Character:FindFirstChildOfClass("Pants")
 
-			if DataDetail.CurrentBundle ~= "nil" and (not Bundle[DataDetail.CurrentBundle]["Override"] or Bundle[DataDetail.CurrentBundle]["Override"] == false) then
+			if DataDetail.CurrentBundle ~= "nil" and Bundle[DataDetail.CurrentBundle] and (not Bundle[DataDetail.CurrentBundle]["Override"] or Bundle[DataDetail.CurrentBundle]["Override"] == false) then
 
 				if TShirt then
 					if DataDetail.OldestClothings.ShirtGraphic == nil then
@@ -15459,7 +15755,8 @@ function RoClothes(Player)
 
 				if DataDetail.CurrentBundle ~= "Bald" then
 
-					Function.AccessoryLoaderFunction(Character, CharacterAttachment, DataDetail.CurrentBundle, Data)
+					Function.AccessoryLoaderFunction(Character, CharacterAttachment, DataDetail.CurrentBundle, Data, RequestID)
+					if RequestID and RequestID ~= DataDetail.LastRequestID then return end
 
 					if DataDetail.SkinTone == nil then
 						Function.BodyColorsFunction(Character, DataDetail.CurrentBundle, Data)
@@ -15467,12 +15764,16 @@ function RoClothes(Player)
 				end
 			end
 
-			Function.CatalogLoader(Character, CharacterAttachment, Data, OldCharacter)
+			Function.CatalogLoader(Character, CharacterAttachment, Data, OldCharacter, RequestID)
+			if RequestID and RequestID ~= DataDetail.LastRequestID then return end
 			if DataDetail.SkinTone ~= nil then
 				Function.BodyColorForceSet(Character, DataDetail.SkinTone)
+				if OldCharacter and OldCharacter ~= Character then
+					Function.BodyColorForceSet(OldCharacter, DataDetail.SkinTone)
+				end
 			end
 
-			if DataDetail.CurrentBundle ~= "nil" and Bundle[DataDetail.CurrentBundle]["Override"] == true then
+			if DataDetail.CurrentBundle ~= "nil" and Bundle[DataDetail.CurrentBundle] and Bundle[DataDetail.CurrentBundle]["Override"] == true then
 
 				if TShirt then
 					if DataDetail.OldestClothings.ShirtGraphic == nil then
@@ -15498,7 +15799,8 @@ function RoClothes(Player)
 
 				if DataDetail.CurrentBundle ~= "Bald" then
 
-					Function.AccessoryLoaderFunction(Character, CharacterAttachment, DataDetail.CurrentBundle, Data)
+					Function.AccessoryLoaderFunction(Character, CharacterAttachment, DataDetail.CurrentBundle, Data, RequestID)
+					if RequestID and RequestID ~= DataDetail.LastRequestID then return end
 
 					if DataDetail.SkinTone == nil then
 						Function.BodyColorsFunction(Character, DataDetail.CurrentBundle, Data)
@@ -15528,6 +15830,13 @@ function RoClothes(Player)
 				local AccessoryLoaderModel = Instance.new("Model", workspace)
 				AccessoryLoaderModel:AddTag("RoClothes")
 				AccessoryLoaderModel.Archivable = not hidden
+				
+				-- Error Fix: ApplyDescription requires a "Head" part in the model
+				local headLoader = Instance.new("Part", AccessoryLoaderModel)
+				headLoader.Name = "Head"
+				headLoader.Transparency = 1
+				headLoader.CanCollide = false
+				
 				local HumanoidAccessoryLoader = Instance.new("Humanoid", AccessoryLoaderModel)
 				HumanoidAccessoryLoader:ApplyDescription(HumanoidDescription)
 
@@ -15560,6 +15869,12 @@ function RoClothes(Player)
 
 			local PartListData = DataDetail.PartList
 
+			-- V4.2.7 (Breast Physics Restoration): Lerp-original per-BreastsType axis map + rotation.
+			-- Default covers BreastsType 1/3/4; Types 2 and 5 override below in their respective branches.
+			-- Note: these locals were deleted during an earlier Krul refactor, which made the inline
+			-- RIGHTBREAST/LEFTBREAST SpringCreate calls reference a dangling "Rotation" global (nil,
+			-- silently caught by pcall in the physics render loop). Restoring them fixes both the
+			-- axis-swap symptom AND the hidden nil-crash.
 			local PhysicsRotationOffset = {
 				X = "Z",
 				Y = "X",
@@ -15583,95 +15898,103 @@ function RoClothes(Player)
 			local RIGHTBREAST
 
 			if DataDetail.TorsoType == 1 then
-				TORSO = Function.Weld(PartListData["Torso"], Character, Extra, Data)
+				TORSO = Function.Weld(PartListData["Torso"], Character, Extra, Data, RequestID)
 			else
-				TORSO = Function.Weld(PartListData["Torso".. DataDetail.TorsoType], Character, Extra, Data)
+				TORSO = Function.Weld(PartListData["Torso".. DataDetail.TorsoType], Character, Extra, Data, RequestID)
 			end
+			if TORSO then PlayerData[Data].CurrentPartList["Organ"]["Torso"] = TORSO end
 
 			if DataDetail.ArmType == 1 then
-				LEFTARM = Function.Weld(PartListData["Left Arm"], Character, Extra, Data)
-				RIGHTARM = Function.Weld(PartListData["Right Arm"], Character, Extra, Data)
+				LEFTARM = Function.Weld(PartListData["Left Arm"], Character, Extra, Data, RequestID)
+				RIGHTARM = Function.Weld(PartListData["Right Arm"], Character, Extra, Data, RequestID)
 			else
-				LEFTARM = Function.Weld(PartListData["Left Arm".. DataDetail.ArmType], Character, Extra, Data)
-				RIGHTARM = Function.Weld(PartListData["Right Arm".. DataDetail.ArmType], Character, Extra, Data)
+				LEFTARM = Function.Weld(PartListData["Left Arm".. DataDetail.ArmType], Character, Extra, Data, RequestID)
+				RIGHTARM = Function.Weld(PartListData["Right Arm".. DataDetail.ArmType], Character, Extra, Data, RequestID)
 			end
+			if LEFTARM then PlayerData[Data].CurrentPartList["Organ"]["Left Arm"] = LEFTARM end
+			if RIGHTARM then PlayerData[Data].CurrentPartList["Organ"]["Right Arm"] = RIGHTARM end
 
 			if DataDetail.LegsType == 1 then
-				LEFTLEG = Function.Weld(PartListData["Left Leg"], Character, Extra, Data)
-				RIGHTLEG = Function.Weld(PartListData["Right Leg"], Character, Extra, Data)
+				LEFTLEG = Function.Weld(PartListData["Left Leg"], Character, Extra, Data, RequestID)
+				RIGHTLEG = Function.Weld(PartListData["Right Leg"], Character, Extra, Data, RequestID)
 			else
-				LEFTLEG = Function.Weld(PartListData["Left Leg".. DataDetail.LegsType], Character, Extra, Data)
-				RIGHTLEG = Function.Weld(PartListData["Right Leg".. DataDetail.LegsType], Character, Extra, Data)
+				LEFTLEG = Function.Weld(PartListData["Left Leg".. DataDetail.LegsType], Character, Extra, Data, RequestID)
+				RIGHTLEG = Function.Weld(PartListData["Right Leg".. DataDetail.LegsType], Character, Extra, Data, RequestID)
 			end
+			if LEFTLEG then PlayerData[Data].CurrentPartList["Organ"]["Left Leg"] = LEFTLEG end
+			if RIGHTLEG then PlayerData[Data].CurrentPartList["Organ"]["Right Leg"] = RIGHTLEG end
 
 			if DataDetail.ButtType == 1 then
-				LEFTBUTT = Function.Weld(PartListData["Left Butt"], Character, Extra, Data)
-				RIGHTBUTT = Function.Weld(PartListData["Right Butt"], Character, Extra, Data)
+				LEFTBUTT = Function.Weld(PartListData["Left Butt"], Character, Extra, Data, RequestID)
+				RIGHTBUTT = Function.Weld(PartListData["Right Butt"], Character, Extra, Data, RequestID)
 			else
-				LEFTBUTT = Function.Weld(PartListData["Left Butt".. DataDetail.ButtType], Character, Extra, Data)
-				RIGHTBUTT = Function.Weld(PartListData["Right Butt".. DataDetail.ButtType], Character, Extra, Data)
+				LEFTBUTT = Function.Weld(PartListData["Left Butt".. DataDetail.ButtType], Character, Extra, Data, RequestID)
+				RIGHTBUTT = Function.Weld(PartListData["Right Butt".. DataDetail.ButtType], Character, Extra, Data, RequestID)
 			end
-
-			PlayerData[Data].CurrentPartList["Organ"]["Torso"] = TORSO
-			PlayerData[Data].CurrentPartList["Organ"]["Left Leg"] = LEFTLEG
-			PlayerData[Data].CurrentPartList["Organ"]["Right Leg"] = RIGHTLEG
-			PlayerData[Data].CurrentPartList["Organ"]["Left Arm"] = LEFTARM
-			PlayerData[Data].CurrentPartList["Organ"]["Right Arm"] = RIGHTARM
-			PlayerData[Data].CurrentPartList["Organ"]["Left Butt"] = LEFTBUTT
-			PlayerData[Data].CurrentPartList["Organ"]["Right Butt"] = RIGHTBUTT
+			if LEFTBUTT then PlayerData[Data].CurrentPartList["Organ"]["Left Butt"] = LEFTBUTT end
+			if RIGHTBUTT then PlayerData[Data].CurrentPartList["Organ"]["Right Butt"] = RIGHTBUTT end
 
 			if DataDetail.BreastsType == 1 then
-				LEFTBREAST = Function.Weld(PartListData["Left Breast"], Character, Extra, Data)
-				RIGHTBREAST = Function.Weld(PartListData["Right Breast"], Character, Extra, Data)
+				LEFTBREAST = Function.Weld(PartListData["Left Breast"], Character, Extra, Data, RequestID)
+				RIGHTBREAST = Function.Weld(PartListData["Right Breast"], Character, Extra, Data, RequestID)
+				if LEFTBREAST then PlayerData[Data].CurrentPartList["Organ"]["Left Breast"] = LEFTBREAST end
+				if RIGHTBREAST then PlayerData[Data].CurrentPartList["Organ"]["Right Breast"] = RIGHTBREAST end
 
-				local LEFTNIPPLE = Function.Weld(PartListData["Left Nipple"], Character, Extra, Data)
-				local RIGHTNIPPLE = Function.Weld(PartListData["Right Nipple"], Character, Extra, Data)
-
-				PlayerData[Data].CurrentPartList["Organ"]["Left Nipple"] = LEFTNIPPLE
-				PlayerData[Data].CurrentPartList["Organ"]["Right Nipple"] = RIGHTNIPPLE
+				local LEFTNIPPLE = Function.Weld(PartListData["Left Nipple"], Character, Extra, Data, RequestID)
+				local RIGHTNIPPLE = Function.Weld(PartListData["Right Nipple"], Character, Extra, Data, RequestID)
+				if LEFTNIPPLE then PlayerData[Data].CurrentPartList["Organ"]["Left Nipple"] = LEFTNIPPLE end
+				if RIGHTNIPPLE then PlayerData[Data].CurrentPartList["Organ"]["Right Nipple"] = RIGHTNIPPLE end
 			elseif DataDetail.BreastsType == 2 then
-				LEFTBREAST = Function.Weld(PartListData["Left Breast Type 2"], Character, Extra, Data)
-				RIGHTBREAST = Function.Weld(PartListData["Right Breast Type 2"], Character, Extra, Data)
+				LEFTBREAST = Function.Weld(PartListData["Left Breast Type 2"], Character, Extra, Data, RequestID)
+				RIGHTBREAST = Function.Weld(PartListData["Right Breast Type 2"], Character, Extra, Data, RequestID)
+				if LEFTBREAST then PlayerData[Data].CurrentPartList["Organ"]["Left Breast"] = LEFTBREAST end
+				if RIGHTBREAST then PlayerData[Data].CurrentPartList["Organ"]["Right Breast"] = RIGHTBREAST end
 
+				-- V4.2.7: Lerp-original BreastsType 2 axis override
 				PhysicsRotationOffset = {
 					X = "Y",
 					Y = "X",
 					Z = "Z",
 				}
+
 			elseif DataDetail.BreastsType == 3 then
-				LEFTBREAST = Function.Weld(PartListData["Left Breast Type 3"], Character, Extra, Data)
-				RIGHTBREAST = Function.Weld(PartListData["Right Breast Type 3"], Character, Extra, Data)
+				LEFTBREAST = Function.Weld(PartListData["Left Breast Type 3"], Character, Extra, Data, RequestID)
+				RIGHTBREAST = Function.Weld(PartListData["Right Breast Type 3"], Character, Extra, Data, RequestID)
+				if LEFTBREAST then PlayerData[Data].CurrentPartList["Organ"]["Left Breast"] = LEFTBREAST end
+				if RIGHTBREAST then PlayerData[Data].CurrentPartList["Organ"]["Right Breast"] = RIGHTBREAST end
 
-				local LEFTNIPPLE = Function.Weld(PartListData["Left Nipple Type 3"], Character, Extra, Data)
-				local RIGHTNIPPLE = Function.Weld(PartListData["Right Nipple Type 3"], Character, Extra, Data)
-
-				PlayerData[Data].CurrentPartList["Organ"]["Left Nipple"] = LEFTNIPPLE
-				PlayerData[Data].CurrentPartList["Organ"]["Right Nipple"] = RIGHTNIPPLE
+				local LEFTNIPPLE = Function.Weld(PartListData["Left Nipple Type 3"], Character, Extra, Data, RequestID)
+				local RIGHTNIPPLE = Function.Weld(PartListData["Right Nipple Type 3"], Character, Extra, Data, RequestID)
+				if LEFTNIPPLE then PlayerData[Data].CurrentPartList["Organ"]["Left Nipple"] = LEFTNIPPLE end
+				if RIGHTNIPPLE then PlayerData[Data].CurrentPartList["Organ"]["Right Nipple"] = RIGHTNIPPLE end
 			elseif DataDetail.BreastsType == 4 then
-				LEFTBREAST = Function.Weld(PartListData["Left Breast Type 4"], Character, Extra, Data)
-				RIGHTBREAST = Function.Weld(PartListData["Right Breast Type 4"], Character, Extra, Data)
+				LEFTBREAST = Function.Weld(PartListData["Left Breast Type 4"], Character, Extra, Data, RequestID)
+				RIGHTBREAST = Function.Weld(PartListData["Right Breast Type 4"], Character, Extra, Data, RequestID)
+				if LEFTBREAST then PlayerData[Data].CurrentPartList["Organ"]["Left Breast"] = LEFTBREAST end
+				if RIGHTBREAST then PlayerData[Data].CurrentPartList["Organ"]["Right Breast"] = RIGHTBREAST end
 
-				local LEFTAREOLA = Function.Weld(PartListData["Left Areola Type 4"], Character, Extra, Data)
-				local RIGHTAREOLA = Function.Weld(PartListData["Right Areola Type 4"], Character, Extra, Data)
-				local LEFTNIPPLE = Function.Weld(PartListData["Left Nipple Type 4"], Character, Extra, Data)
-				local RIGHTNIPPLE = Function.Weld(PartListData["Right Nipple Type 4"], Character, Extra, Data)
-				PlayerData[Data].CurrentPartList.Link[LEFTAREOLA] = {T=LEFTNIPPLE}
-				PlayerData[Data].CurrentPartList.Link[RIGHTAREOLA] = {T=RIGHTNIPPLE}
-
-				PlayerData[Data].CurrentPartList["Organ"]["Left Areola"] = LEFTAREOLA
-				PlayerData[Data].CurrentPartList["Organ"]["Right Areola"] = RIGHTAREOLA
-				PlayerData[Data].CurrentPartList["Organ"]["Left Nipple"] = LEFTNIPPLE
-				PlayerData[Data].CurrentPartList["Organ"]["Right Nipple"] = RIGHTNIPPLE
+				local LEFTAREOLA = Function.Weld(PartListData["Left Areola Type 4"], Character, Extra, Data, RequestID)
+				local RIGHTAREOLA = Function.Weld(PartListData["Right Areola Type 4"], Character, Extra, Data, RequestID)
+				local LEFTNIPPLE = Function.Weld(PartListData["Left Nipple Type 4"], Character, Extra, Data, RequestID)
+				local RIGHTNIPPLE = Function.Weld(PartListData["Right Nipple Type 4"], Character, Extra, Data, RequestID)
+				if LEFTAREOLA and LEFTNIPPLE then PlayerData[Data].CurrentPartList.Link[LEFTAREOLA] = {T=LEFTNIPPLE} end
+				if RIGHTAREOLA and RIGHTNIPPLE then PlayerData[Data].CurrentPartList.Link[RIGHTAREOLA] = {T=RIGHTNIPPLE} end
+				if LEFTAREOLA then PlayerData[Data].CurrentPartList["Organ"]["Left Areola"] = LEFTAREOLA end
+				if RIGHTAREOLA then PlayerData[Data].CurrentPartList["Organ"]["Right Areola"] = RIGHTAREOLA end
+				if LEFTNIPPLE then PlayerData[Data].CurrentPartList["Organ"]["Left Nipple"] = LEFTNIPPLE end
+				if RIGHTNIPPLE then PlayerData[Data].CurrentPartList["Organ"]["Right Nipple"] = RIGHTNIPPLE end
 			elseif DataDetail.BreastsType == 5 then
-				LEFTBREAST = Function.Weld(PartListData["Left Breast Type 5"], Character, Extra, Data)
-				RIGHTBREAST = Function.Weld(PartListData["Right Breast Type 5"], Character, Extra, Data)
+				LEFTBREAST = Function.Weld(PartListData["Left Breast Type 5"], Character, Extra, Data, RequestID)
+				RIGHTBREAST = Function.Weld(PartListData["Right Breast Type 5"], Character, Extra, Data, RequestID)
+				if LEFTBREAST then PlayerData[Data].CurrentPartList["Organ"]["Left Breast"] = LEFTBREAST end
+				if RIGHTBREAST then PlayerData[Data].CurrentPartList["Organ"]["Right Breast"] = RIGHTBREAST end
 
-				local LEFTNIPPLE = Function.Weld(PartListData["Left Nipple Type 5"], Character, Extra, Data)
-				local RIGHTNIPPLE = Function.Weld(PartListData["Right Nipple Type 5"], Character, Extra, Data)
+				local LEFTNIPPLE = Function.Weld(PartListData["Left Nipple Type 5"], Character, Extra, Data, RequestID)
+				local RIGHTNIPPLE = Function.Weld(PartListData["Right Nipple Type 5"], Character, Extra, Data, RequestID)
+				if LEFTNIPPLE then PlayerData[Data].CurrentPartList["Organ"]["Left Nipple"] = LEFTNIPPLE end
+				if RIGHTNIPPLE then PlayerData[Data].CurrentPartList["Organ"]["Right Nipple"] = RIGHTNIPPLE end
 
-				PlayerData[Data].CurrentPartList["Organ"]["Left Nipple"] = LEFTNIPPLE
-				PlayerData[Data].CurrentPartList["Organ"]["Right Nipple"] = RIGHTNIPPLE
-
+				-- V4.2.7: Lerp-original BreastsType 5 overrides (different axis map + positive Y rotation)
 				PhysicsRotationOffset = {
 					X = "Y",
 					Y = "X",
@@ -15682,113 +16005,65 @@ function RoClothes(Player)
 					Y = 5,
 					Z = 5
 				}
-			end
 
-			PlayerData[Data].CurrentPartList["Organ"]["Left Breast"] = LEFTBREAST
-			PlayerData[Data].CurrentPartList["Organ"]["Right Breast"] = RIGHTBREAST
+			end
 
 			if DataDetail.BodyPartPhysics then
 				local Torso = Character:FindFirstChild("Torso")
 
 				if Torso then
 					Function.SpringCreate(
-						RIGHTBUTT, 
-						Torso, 
-						Vector3.new(0,0,0), 
-						Vector3.new(0,0,0), 
-						10, 
-						0.1,
-						{
-							X = "X",
-							Y = "Y",
-							Z = "Z",
-						},
-						{
-							X = 1/20,
-							Y = 1/40,
-							Z = 1/20
-						},
-						{
-							X = "Y",
-							Y = "X",
-							Z = "Z",
-						},
-						{
-							X = 3,
-							Y = 2,
-							Z = 2
-						},
+						RIGHTBUTT,
+						Torso,
+						Vector3.new(0,0,0),
+						Vector3.new(0,0,0),
+						SpringConfigs.Buttocks.Speed,
+						SpringConfigs.Buttocks.Damper,
+						{X="X", Y="Y", Z="Z"},
+						PhysicsPosition.Buttocks,
+						{X="Y", Y="X", Z="Z"},
+						PhysicsRotation.Buttocks,
 						Data
 					)
 					Function.SpringCreate(
-						LEFTBUTT, 
-						Torso, 
-						Vector3.new(0,0,0), 
-						Vector3.new(0,0,0), 
-						10, 
-						0.1, 
-						{
-							X = "X",
-							Y = "Y",
-							Z = "Z",
-						},
-						{
-							X = 1/20,
-							Y = 1/40,
-							Z = 1/20
-						},
-						{
-							X = "Y",
-							Y = "X",
-							Z = "Z",
-						},
-						{
-							X = 3,
-							Y = 2,
-							Z = 2
-						},
+						LEFTBUTT,
+						Torso,
+						Vector3.new(0,0,0),
+						Vector3.new(0,0,0),
+						SpringConfigs.Buttocks.Speed,
+						SpringConfigs.Buttocks.Damper,
+						{X="X", Y="Y", Z="Z"},
+						PhysicsPosition.Buttocks,
+						{X="Y", Y="X", Z="Z"},
+						PhysicsRotation.Buttocks,
 						Data
 					)
 					-- just so i remember, the default breastphyiscs speed&damper were 10, 0.20
 					-- default rotation were 5, -5, 5
+					-- V4.2.7: reverted to Lerp-original — PhysicsRotationOffset and Rotation are
+					-- per-BreastsType locals defined earlier in this function.
 					Function.SpringCreate(
-						RIGHTBREAST, 
-						Torso, 
-						Vector3.new(0,0,0), 
-						Vector3.new(0,0,0), 
-						8,
-						0.207, 
-						{
-							X = "X",
-							Y = "Y",
-							Z = "Z",
-						},
-						{
-							X = 0,
-							Y = 0,
-							Z = 0
-						},
+						RIGHTBREAST,
+						Torso,
+						Vector3.new(0,0,0),
+						Vector3.new(0,0,0),
+						SpringConfigs.Breasts.Speed,
+						SpringConfigs.Breasts.Damper,
+						{X="X", Y="Y", Z="Z"},
+						{X=0, Y=0, Z=0},
 						PhysicsRotationOffset,
 						Rotation,
 						Data
 					)
 					Function.SpringCreate(
-						LEFTBREAST, 
-						Torso, 
-						Vector3.new(0,0,0), 
-						Vector3.new(0,0,0), 
-						8, 
-						0.207, 
-						{
-							X = "X",
-							Y = "Y",
-							Z = "Z",
-						},
-						{
-							X = 0,
-							Y = 0,
-							Z = 0
-						},
+						LEFTBREAST,
+						Torso,
+						Vector3.new(0,0,0),
+						Vector3.new(0,0,0),
+						SpringConfigs.Breasts.Speed,
+						SpringConfigs.Breasts.Damper,
+						{X="X", Y="Y", Z="Z"},
+						{X=0, Y=0, Z=0},
 						PhysicsRotationOffset,
 						Rotation,
 						Data
@@ -15797,25 +16072,22 @@ function RoClothes(Player)
 			end
 
 			if DataDetail.MeshBasePartInvisible then
-				TORSO.Transparency = 1
-				LEFTLEG.Transparency = 1
-				RIGHTLEG.Transparency = 1
-				LEFTARM.Transparency = 1
-				RIGHTARM.Transparency = 1
-				DataDetail.CurrentPartList.ParentTransparency[TORSO] = {D = 0, T = 1}
-				DataDetail.CurrentPartList.ParentTransparency[LEFTLEG] = {D = 0, T = 1}
-				DataDetail.CurrentPartList.ParentTransparency[RIGHTLEG] = {D = 0, T = 1}
-				DataDetail.CurrentPartList.ParentTransparency[LEFTARM] = {D = 0, T = 1}
-				DataDetail.CurrentPartList.ParentTransparency[RIGHTARM] = {D = 0, T = 1}
+				for _, part in ipairs({TORSO, LEFTLEG, RIGHTLEG, LEFTARM, RIGHTARM}) do
+					if part then
+						part.Transparency = 1
+						DataDetail.CurrentPartList.ParentTransparency[part] = {D = 0, T = 1}
+					end
+				end
 			end
 
 			for _, SelectClothes in pairs(DataDetail.CurrentClothes) do
+				if RequestID and RequestID ~= DataDetail.LastRequestID then return end
 				if SelectClothes ~= "nil" then
 
 					local function weldClothes(w)
 						for i, v in pairs(w) do
 
-							local ClothesPart = Function.Weld(PartListData[v], Character, Extra, Data)
+							local ClothesPart = Function.Weld(PartListData[v], Character, Extra, Data, RequestID)
 							if ClothesPart then
 								DataDetail.CurrentPartList["Clothes"][v] = ClothesPart
 								if DataDetail.ClothesRecolor[SelectClothes] and PartListData[v].Recolor then
@@ -16054,20 +16326,31 @@ function RoClothes(Player)
 			end
 			task.wait()
 			DataDetail["Cooldown"] = false
-		end
+		end)
+
+		-- Cooldown safety net
+		task.delay(30, function()
+			if DataDetail and DataDetail["Cooldown"] == true then
+				DataDetail["Cooldown"] = false
+			end
+		end)
 	end
 
 	function Function.CharacterConnection(Player)
 		local CharacterConnect = Player.CharacterAdded:Connect(function(Character)
 			if PlayerData[Player.Name] ~= nil and PlayerData[Player.Name].AutoExecute then
-				repeat task.wait(0.5) until Character.Parent ~= nil
-				task.wait(PlayerData[Player.Name].DelayTime)
+				while not Function.CharacterIsBuilt(Character) do
+					task.wait(0.1)
+				end
 
-				Function.CharacterExecute(Character, Player.Name)
+				Function.PlayerDataAdd(Player.Name)
+				PlayerData[Player.Name].LastRequestID = PlayerData[Player.Name].LastRequestID + 1
+				local autoID = PlayerData[Player.Name].LastRequestID
+				Function.CharacterExecute(Character, Player.Name, nil, autoID)
 			end
 		end)
 
-		table.insert(AllConnect, CharacterConnect)
+		GlobalMaid:Give(CharacterConnect)
 	end
 
 	function Function.StringTo(String, Type)
@@ -16083,6 +16366,7 @@ function RoClothes(Player)
 	end
 
 	function Function.MeshEditButton(Name)
+		if not PlayerData[SelectPlayer] then return end
 		for _, v in pairs(GUIObject.PropertyListFrame:GetChildren()) do
 			if v:IsA(("Frame")) then
 				v:Destroy()
@@ -16184,16 +16468,16 @@ function RoClothes(Player)
 	end
 
 	function Function.IsCharacter(Model)
-		return Model:FindFirstChild("Torso") or Model:FindFirstChild("Head") or Model:FindFirstChild("Right Arm") or Model:FindFirstChild("Left Arm") or Model:FindFirstChild("Right Leg") or Model:FindFirstChild("Left Leg")
+		return Model and (Model:FindFirstChild("Torso") or Model:FindFirstChild("Head") or Model:FindFirstChild("Right Arm") or Model:FindFirstChild("Left Arm") or Model:FindFirstChild("Right Leg") or Model:FindFirstChild("Left Leg"))
 	end
 
 	function Function.GUIUpdate()
 		for i, v in pairs(GUIObject.ClothesButtonFrame:GetChildren()) do
 			if v:IsA("Frame") then
 				if table.find(PlayerData[SelectPlayer].CurrentClothes, v.Name) then
-					v.BackgroundColor3 = Color3.fromRGB(255, 242, 67)
+					v.BackgroundColor3 = Color3.fromRGB(50, 100, 170)
 				else
-					v.BackgroundColor3 = Color3.fromRGB(6, 0, 76)
+					v.BackgroundColor3 = Color3.fromRGB(20, 17, 32)
 				end 
 
 				if GUIObject.ClothesSearch.Text ~= "" then
@@ -16205,17 +16489,33 @@ function RoClothes(Player)
 		end
 		for i, v in pairs(GUIObject.BundlesButtonFrame:GetChildren()) do
 			if v:IsA("Frame") then
-				if v.Name == PlayerData[SelectPlayer].CurrentBundle then
-					v.BackgroundColor3 = Color3.fromRGB(255, 242, 67)
+				local isActive = false
+				if v.Name == PlayerData[SelectPlayer].CurrentBundle and v.Name ~= "nil" then
+					isActive = true
+				elseif Bundle[v.Name] and Bundle[v.Name].IsPreset and PlayerData[SelectPlayer].CurrentPreset == v.Name then
+					isActive = true
+				elseif Bundle[v.Name] and Bundle[v.Name].ClothingBundle and table.find(PlayerData[SelectPlayer].CurrentClothingBundles, v.Name) then
+					isActive = true
+				end
+
+				if isActive then
+					v.BackgroundColor3 = Color3.fromRGB(50, 100, 170)
 					if v.Name == "nil" then
 						v:FindFirstChildOfClass("TextButton").Text = "CLEAR?"
 					end
-				elseif v.BackgroundColor3 == Color3.fromRGB(255, 242, 67) then
-					v.BackgroundColor3 = Color3.fromRGB(6, 0, 76)
+				else
+					-- Restore original color based on type
+					if Bundle[v.Name] and Bundle[v.Name].ClothingBundle then
+						v.BackgroundColor3 = Color3.fromRGB(38, 22, 10)
+					elseif Bundle[v.Name] and Bundle[v.Name].IsPreset then
+						v.BackgroundColor3 = Color3.fromRGB(12, 35, 20)
+					else
+						v.BackgroundColor3 = Color3.fromRGB(20, 17, 32)
+					end
 					if v.Name == "nil" then
 						v:FindFirstChildOfClass("TextButton").Text = "nil"
 					end
-				end 
+				end
 
 				if GUIObject.BundleSearch.Text ~= "" then
 					v.Visible = string.find(string.lower(v.Name),string.lower(GUIObject.BundleSearch.Text))
@@ -16225,47 +16525,25 @@ function RoClothes(Player)
 			end
 		end
 
-		if PlayerData[SelectPlayer].AutoExecute then
-			GUIObject.AutoExecuteButton.TextStrokeColor3 = Color3.new(0,255,0)
-		else
-			GUIObject.AutoExecuteButton.TextStrokeColor3 = Color3.new(255,0,0)
+		-- V4.3.35: Helper to tint a frame's UIGradient for clear ON/OFF visualization
+		local function setToggleState(frame, button, isOn)
+			local grad = frame:FindFirstChildOfClass("UIGradient")
+			if isOn then
+				if grad then grad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 155, 62)), ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 125, 50))} end
+				button.TextStrokeColor3 = Color3.fromRGB(100, 255, 150)
+			else
+				if grad then grad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(185, 25, 25)), ColorSequenceKeypoint.new(1, Color3.fromRGB(155, 18, 18))} end
+				button.TextStrokeColor3 = Color3.fromRGB(255, 90, 90)
+			end
 		end
 
-		if PlayerData[SelectPlayer].BundleBodyColor then
-			GUIObject.BundleBodyColorButton.TextStrokeColor3 = Color3.new(0,255,0)
-		else
-			GUIObject.BundleBodyColorButton.TextStrokeColor3 = Color3.new(255,0,0)
-		end
-
-		if PlayerData[SelectPlayer].Face then
-			GUIObject.FaceButton.TextStrokeColor3 = Color3.new(0,255,0)
-		else
-			GUIObject.FaceButton.TextStrokeColor3 = Color3.new(255,0,0)
-		end
-
-		if PlayerData[SelectPlayer].MeshSizeLock then
-			GUIObject.MeshSizeLockButton.TextStrokeColor3 = Color3.new(0,255,0)
-		else
-			GUIObject.MeshSizeLockButton.TextStrokeColor3 = Color3.new(255,0,0)
-		end
-
-		if PlayerData[SelectPlayer].AccessorySizeLock then
-			GUIObject.AccessorySizeLockButton.TextStrokeColor3 = Color3.new(0,255,0)
-		else
-			GUIObject.AccessorySizeLockButton.TextStrokeColor3 = Color3.new(255,0,0)
-		end
-
-		if PlayerData[SelectPlayer].MeshBasePartInvisible then
-			GUIObject.MeshBasePartInvisibleButton.TextStrokeColor3 = Color3.new(0,255,0)
-		else
-			GUIObject.MeshBasePartInvisibleButton.TextStrokeColor3 = Color3.new(255,0,0)
-		end
-
-		if PlayerData[SelectPlayer].BodyPartPhysics then
-			GUIObject.BodyPartPhysicsButton.TextStrokeColor3 = Color3.new(0,255,0)
-		else
-			GUIObject.BodyPartPhysicsButton.TextStrokeColor3 = Color3.new(255,0,0)
-		end
+		setToggleState(GUIObject.AutoExecuteFrame, GUIObject.AutoExecuteButton, PlayerData[SelectPlayer].AutoExecute)
+		setToggleState(GUIObject.BundleBodyColorFrame, GUIObject.BundleBodyColorButton, PlayerData[SelectPlayer].BundleBodyColor)
+		setToggleState(GUIObject.FaceFrame, GUIObject.FaceButton, PlayerData[SelectPlayer].Face)
+		setToggleState(GUIObject.MeshSizeLockFrame, GUIObject.MeshSizeLockButton, PlayerData[SelectPlayer].MeshSizeLock)
+		setToggleState(GUIObject.AccessorySizeLockFrame, GUIObject.AccessorySizeLockButton, PlayerData[SelectPlayer].AccessorySizeLock)
+		setToggleState(GUIObject.MeshBasePartInvisibleFrame, GUIObject.MeshBasePartInvisibleButton, PlayerData[SelectPlayer].MeshBasePartInvisible)
+		setToggleState(GUIObject.BodyPartPhysicsFrame, GUIObject.BodyPartPhysicsButton, PlayerData[SelectPlayer].BodyPartPhysics)
 
 		for BodyP, Bool in pairs(PlayerData[SelectPlayer].LocalTransparency) do
 			local Button = GUIObject.CharacterFrame:FindFirstChild(BodyP)
@@ -16288,33 +16566,33 @@ function RoClothes(Player)
 		end
 
 		if ClickExecute then
-			GUIObject.ClickExecuteButton.TextStrokeColor3 = Color3.new(0,255,0)
+			GUIObject.ClickExecuteButton.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 		else
-			GUIObject.ClickExecuteButton.TextStrokeColor3 = Color3.new(255,0,0)
+			GUIObject.ClickExecuteButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 		end
 
 		if PlayerData[SelectPlayer].FPerson then
-			GUIObject.FPExecute.TextStrokeColor3 = Color3.new(0,255,0)
+			GUIObject.FPExecute.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 		else
-			GUIObject.FPExecute.TextStrokeColor3 = Color3.new(255,0,0)
+			GUIObject.FPExecute.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 		end
 
 		if PlayerData[SelectPlayer].PhysicsObeyGravity then
-			GUIObject.GravityButton.TextStrokeColor3 = Color3.new(0,255,0)
+			GUIObject.GravityButton.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 		else
-			GUIObject.GravityButton.TextStrokeColor3 = Color3.new(255,0,0)
+			GUIObject.GravityButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 		end
 
 		if PlayerData[SelectPlayer].TearParticles then
-			GUIObject.TPToggle.TextStrokeColor3 = Color3.new(0,255,0)
+			GUIObject.TPToggle.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 		else
-			GUIObject.TPToggle.TextStrokeColor3 = Color3.new(255,0,0)
+			GUIObject.TPToggle.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 		end
 
 		if PlayerData[SelectPlayer].HealParticles then
-			GUIObject.PHToggle.TextStrokeColor3 = Color3.new(0,255,0)
+			GUIObject.PHToggle.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 		else
-			GUIObject.PHToggle.TextStrokeColor3 = Color3.new(255,0,0)
+			GUIObject.PHToggle.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 		end
 
 		if PlayerData[SelectPlayer].SkinTone then
@@ -16328,20 +16606,20 @@ function RoClothes(Player)
 		end
 
 		if PlayerData[SelectPlayer].RealtimeBodyTransparency then
-			GUIObject.BodyTransparencyButton.TextStrokeColor3 = Color3.new(0,1,0)
+			GUIObject.BodyTransparencyButton.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 		else
-			GUIObject.BodyTransparencyButton.TextStrokeColor3 = Color3.new(1,0,0)
+			GUIObject.BodyTransparencyButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 		end
 
 		if PlayerData[SelectPlayer].HardcoreHP then
-			GUIObject.HardcoreToggle.TextStrokeColor3 = Color3.new(0,1,0)
+			GUIObject.HardcoreToggle.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 
 			if not UIS.KeyboardEnabled then
 				GUIObject.ImageHeal.Visible = true
 				GUIObject.ImageTear.Visible = true
 			end
 		else
-			GUIObject.HardcoreToggle.TextStrokeColor3 = Color3.new(1,0,0)
+			GUIObject.HardcoreToggle.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 
 			if not UIS.KeyboardEnabled then
 				GUIObject.ImageHeal.Visible = false
@@ -16350,21 +16628,21 @@ function RoClothes(Player)
 		end
 
 		if PlayerData[SelectPlayer].tailSettings.tailPhysicsEnabled then
-			GUIObject.tailToggleButton.TextStrokeColor3 = Color3.new(0,1,0)
+			GUIObject.tailToggleButton.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 		else
-			GUIObject.tailToggleButton.TextStrokeColor3 = Color3.new(1,0,0)
+			GUIObject.tailToggleButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 		end
 
 		if loadupClosed then
-			GUIObject.closeOptionButton.TextStrokeColor3 = Color3.new(0,1,0)
+			GUIObject.closeOptionButton.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 		else
-			GUIObject.closeOptionButton.TextStrokeColor3 = Color3.new(1,0,0)
+			GUIObject.closeOptionButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 		end
 
 		if loadupExecute then
-			GUIObject.executeOptionButton.TextStrokeColor3 = Color3.new(0,1,0)
+			GUIObject.executeOptionButton.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 		else
-			GUIObject.executeOptionButton.TextStrokeColor3 = Color3.new(1,0,0)
+			GUIObject.executeOptionButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 		end
 
 		if Bundle[loadupBundle] then
@@ -16389,25 +16667,30 @@ function RoClothes(Player)
 			GUIObject.FPersonLoadupButton.Text = "FPerson Loadup: No Headtracking Body"
 		end
 
-		GUIObject.DelayTimeText.Text = PlayerData[SelectPlayer].DelayTime
-		GUIObject.PositionPhysicsMultiplyText.Text = PositionPhysicsMultiply
-		GUIObject.RotationPhysicsMultiplyText.Text = RotationPhysicsMultiply
-		GUIObject.MethodButton.Text = "Method: "..Method
-		GUIObject.BundleText.Text = "Bundle: "..PlayerData[SelectPlayer].CurrentBundle
-		GUIObject.ToneButton.Text = "Tone: "..PlayerData[SelectPlayer].Tone
-		GUIObject.UsernameTextbox.Text = PlayerData[SelectPlayer].CatalogUsername
-		GUIObject.ShirtTextbox.Text = PlayerData[SelectPlayer].CatalogClothes.Shirt
-		GUIObject.PantsTextbox.Text = PlayerData[SelectPlayer].CatalogClothes.Pants
-		GUIObject.ShirtGraphicTextbox.Text = PlayerData[SelectPlayer].CatalogClothes.ShirtGraphic
-		GUIObject.BreastsScaleText.Text = PlayerData[SelectPlayer].BreastsScale
-		GUIObject.ButtsScaleText.Text = PlayerData[SelectPlayer].ButtsScale
-		GUIObject.LegsScaleText.Text = PlayerData[SelectPlayer].LegsScale
-		GUIObject.BreastsTypeButton.Text = "Breasts Type: "..PlayerData[SelectPlayer].BreastsType
-		GUIObject.TorsoTypeButton.Text = "Torso Type: "..PlayerData[SelectPlayer].TorsoType
-		GUIObject.ArmTypeButton.Text = "Arm Type: "..PlayerData[SelectPlayer].ArmType
-		GUIObject.LegsTypeButton.Text = "Legs Type: "..PlayerData[SelectPlayer].LegsType
-		GUIObject.ButtTypeButton.Text = "Butt Type: "..PlayerData[SelectPlayer].ButtType
-		GUIObject.OutfitIdTextbox.Text = PlayerData[SelectPlayer].CatalogOutfitId
+		GUIObject.DelayTimeText.Text = tostring(PlayerData[SelectPlayer].DelayTime or "0")
+		GUIObject.PositionPhysicsMultiplyText.Text = tostring(PositionPhysicsMultiply or "1")
+		GUIObject.RotationPhysicsMultiplyText.Text = tostring(RotationPhysicsMultiply or "4")
+		GUIObject.MethodButton.Text = "Method: "..tostring(Method or "1")
+		GUIObject.BundleText.Text = "Bundle: "..tostring(PlayerData[SelectPlayer].CurrentBundle or "None")
+		GUIObject.ToneButton.Text = "Tone: "..tostring(PlayerData[SelectPlayer].Tone or "1")
+		GUIObject.UsernameTextbox.Text = tostring(PlayerData[SelectPlayer].CatalogUsername or "")
+		GUIObject.ShirtTextbox.Text = tostring(PlayerData[SelectPlayer].CatalogClothes.Shirt or "")
+		GUIObject.PantsTextbox.Text = tostring(PlayerData[SelectPlayer].CatalogClothes.Pants or "")
+		GUIObject.ShirtGraphicTextbox.Text = tostring(PlayerData[SelectPlayer].CatalogClothes.ShirtGraphic or "")
+		GUIObject.BreastsScaleText.Text = tostring(PlayerData[SelectPlayer].BreastsScale or "1")
+		GUIObject.ButtsScaleText.Text = tostring(PlayerData[SelectPlayer].ButtsScale or "1")
+		GUIObject.LegsScaleText.Text = tostring(PlayerData[SelectPlayer].LegsScale or "1")
+
+		-- V4.3.1: physics sliders refresh through their stored closures (fill bar + label).
+		for _, refresh in ipairs(PhysicsSliderRefreshers) do
+			pcall(refresh)
+		end
+		GUIObject.BreastsTypeButton.Text = "Breasts Type: "..tostring(PlayerData[SelectPlayer].BreastsType or "1")
+		GUIObject.TorsoTypeButton.Text = "Torso Type: "..tostring(PlayerData[SelectPlayer].TorsoType or "1")
+		GUIObject.ArmTypeButton.Text = "Arm Type: "..tostring(PlayerData[SelectPlayer].ArmType or "1")
+		GUIObject.LegsTypeButton.Text = "Legs Type: "..tostring(PlayerData[SelectPlayer].LegsType or "1")
+		GUIObject.ButtTypeButton.Text = "Butt Type: "..tostring(PlayerData[SelectPlayer].ButtType or "1")
+		GUIObject.OutfitIdTextbox.Text = tostring(PlayerData[SelectPlayer].CatalogOutfitId or "")
 
 		GUIObject.TopHPText.Text = PlayerData[SelectPlayer].TopHP
 		GUIObject.BottomHPText.Text = PlayerData[SelectPlayer].BottomHP
@@ -16503,6 +16786,32 @@ function RoClothes(Player)
 					KEYBIND = settings.KEYBIND or KEYBIND
 					hpKEYBIND = settings.hpKEYBIND or hpKEYBIND
 					dpKEYBIND = settings.dpKEYBIND or dpKEYBIND
+
+					loadupBreastsStiffness = settings.loadupBreastsStiffness or 8
+					loadupBreastsDamping = settings.loadupBreastsDamping or 0.207
+					loadupButtsStiffness = settings.loadupButtsStiffness or 10
+					loadupButtsDamping = settings.loadupButtsDamping or 0.1
+
+					-- V4.3.1: SpringConfigs override RE-ENABLED (now safe).
+					-- In V4.2.8 we disabled this because the GUI textboxes had no change handler,
+					-- meaning saved values came only from user clicks on Save-while-displaying-defaults,
+					-- and Krul's defaults were much weaker than Lerp-original. Now that the fields
+					-- are proper drag sliders (V4.3.1) with live updates to PlayerData + SpringConfigs
+					-- via MakePhysicsSlider, the saved Settings.json values reflect real user intent
+					-- and are safe to reapply on load. Also writing back to PlayerData so the slider
+					-- displays the loaded value correctly on startup (previously PlayerData was
+					-- initialized before settings were read, so saved values never showed up in the
+					-- GUI — a latent bug fixed here).
+					System.Physics.SpringConfigs.Breasts.Speed   = loadupBreastsStiffness
+					System.Physics.SpringConfigs.Breasts.Damper  = loadupBreastsDamping
+					System.Physics.SpringConfigs.Buttocks.Speed  = loadupButtsStiffness
+					System.Physics.SpringConfigs.Buttocks.Damper = loadupButtsDamping
+					if PlayerData[Player.Name] then
+						PlayerData[Player.Name].BreastsStiffness = loadupBreastsStiffness
+						PlayerData[Player.Name].BreastsDamping   = loadupBreastsDamping
+						PlayerData[Player.Name].ButtsStiffness   = loadupButtsStiffness
+						PlayerData[Player.Name].ButtsDamping     = loadupButtsDamping
+					end
 				end
 				if env.isfile("RClothesLerp/MobileButtonPlacement.json") then
 					local settings = HS:JSONDecode(env.readfile("RClothesLerp/MobileButtonPlacement.json"))
@@ -16682,7 +16991,8 @@ function RoClothes(Player)
 					end)
 				end
 			else
-				warn("Executor is not compatible for saving data!")
+				warn("Loader is not compatible for saving data!")
+			-- [[ CONNECTIONS / SIGNALS ]]
 			end
 		elseif RS:IsStudio() then
 			if script:FindFirstChild("loadupSettings") then
@@ -16718,48 +17028,15 @@ function RoClothes(Player)
 		end
 	end)
 	if not loadDataSuccess then
-		warn("Data saving failed compatibility! Executor might not be compatible for saving data!")
+		warn("Data saving failed compatibility! Loader might not be compatible for saving data!")
 	end
 
 	--[[
 	--------------------------------------------------------------------------------------------------------------
 	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
 	
-                  ░█████╗░░█████╗░███╗░░██╗███╗░░██╗███████╗░█████╗░████████╗██╗░█████╗░███╗░░██╗
-                  ██╔══██╗██╔══██╗████╗░██║████╗░██║██╔════╝██╔══██╗╚══██╔══╝██║██╔══██╗████╗░██║
-                  ██║░░╚═╝██║░░██║██╔██╗██║██╔██╗██║█████╗░░██║░░╚═╝░░░██║░░░██║██║░░██║██╔██╗██║
-                  ██║░░██╗██║░░██║██║╚████║██║╚████║██╔══╝░░██║░░██╗░░░██║░░░██║██║░░██║██║╚████║
-                  ╚█████╔╝╚█████╔╝██║░╚███║██║░╚███║███████╗╚█████╔╝░░░██║░░░██║╚█████╔╝██║░╚███║
-                  ░╚════╝░░╚════╝░╚═╝░░╚══╝╚═╝░░╚══╝╚══════╝░╚════╝░░░░╚═╝░░░╚═╝░╚════╝░╚═╝░░╚══╝
+                  R O C L O T H E S   V 3 . 2
                                   
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
 	--------------------------------------------------------------------------------------------------------------
 	--------------------------------------------------------------------------------------------------------------
 	]]
@@ -16804,15 +17081,15 @@ function RoClothes(Player)
 							tap = false
 							if data["Healing"] == true and (data["TopHP"] ~= "" and data["SavedTopHP"] < data["TopHP"] 
 								or data["BottomHP"] ~= "" and data["SavedBottomHP"] < data["BottomHP"]) then
-								local healTime = 0
+								--local healTime = 0
 								local timeAccumulated = 0
 								local totalTime = 0
-								if data["TopHP"] ~= "" then
+								--[[if data["TopHP"] ~= "" then
 									healTime += math.max((data["TopHP"]/math.max(data["SavedTopHP"],1))*0.04,.5)
 								end
 								if data["BottomHP"] ~= "" then
 									healTime += math.max((data["BottomHP"]/math.max(data["SavedBottomHP"],1))*0.04,.5)
-								end
+								end]]
 
 								GUIObject.repairDisplay.Color = ColorSequence.new(
 									{ColorSequenceKeypoint.new(0,Color3.new(1,1,1)),
@@ -16838,11 +17115,44 @@ function RoClothes(Player)
 									if data["BottomHP"] ~= "" and (data["TopHP"] == "" 
 										or data["SavedBottomHP"] <= 0 or data["SavedTopHP"]/data["TopHP"] >= data["SavedBottomHP"]/data["BottomHP"]) then
 										focus = "BottomHP"
-										timeRequired = math.max((data["BottomHP"]/math.max(data["SavedBottomHP"],1))*0.04,.5)
+										local fullTime = math.max(data["BottomHP"]/50,.5)
+										if data["SavedBottomHP"] <= 0 then
+											timeRequired = fullTime
+										else
+											timeRequired = math.max(math.lerp(fullTime*.8,0,data["SavedBottomHP"]/data["BottomHP"]),.25)
+										end
+										--timeRequired = math.max((data["BottomHP"]/math.max(data["SavedBottomHP"],1))*0.04,.5)
 									elseif data["TopHP"] ~= "" and (data["BottomHP"] == "" 
 										or data["SavedTopHP"] <= 0 or data["SavedTopHP"]/data["TopHP"] < data["SavedBottomHP"]/data["BottomHP"]) then
 										focus = "TopHP"
-										timeRequired = math.max((data["TopHP"]/math.max(data["SavedTopHP"],1))*0.04,.5)
+										local fullTime = math.max(data["TopHP"]/50,.5)
+										if data["SavedTopHP"] <= 0 then
+											timeRequired = fullTime
+										else
+											timeRequired = math.max(math.lerp(fullTime*.8,0,data["SavedTopHP"]/data["TopHP"]),.25)
+										end
+										--timeRequired = math.max((data["TopHP"]/math.max(data["SavedTopHP"],1))*0.04,.5)
+									end
+									if data["TopHP"] ~= "" and data["BottomHP"] ~= "" and data["LinkedHeal"] == true then
+										focus = "Both"
+										local fullTime
+										local timeBottom = math.max(data["BottomHP"]/50,.5)
+										local timeTop = math.max(data["TopHP"]/50,.5)
+										if timeBottom < timeTop then
+											fullTime = timeTop
+											if data["SavedTopHP"] <= 0 or data["SavedBottomHP"] <= 0 then
+												timeRequired = fullTime
+											else
+												timeRequired = math.max(math.lerp(fullTime*.8,0,data["SavedTopHP"]/data["TopHP"]),.25)
+											end
+										else
+											fullTime = timeBottom
+											if data["SavedTopHP"] <= 0 or data["SavedBottomHP"] <= 0 then
+												timeRequired = fullTime
+											else
+												timeRequired = math.max(math.lerp(fullTime*.8,0,data["SavedBottomHP"]/data["BottomHP"]),.25)
+											end
+										end
 									end
 									local t = task.wait()
 									timeAccumulated += t
@@ -16852,7 +17162,10 @@ function RoClothes(Player)
 										timeAccumulated = 0
 										if focus == "TopHP" then
 											data["SavedTopHP"]=data["TopHP"]
-										else
+										elseif focus == "BottomHP" then
+											data["SavedBottomHP"]=data["BottomHP"]
+										elseif focus == "Both" then
+											data["SavedTopHP"]=data["TopHP"]
 											data["SavedBottomHP"]=data["BottomHP"]
 										end
 									end
@@ -16931,6 +17244,9 @@ function RoClothes(Player)
 								elseif data["BottomHP"] ~= "" and data["SavedBottomHP"]/data["BottomHP"] > 0 then
 									focus = "BottomHP"
 								end
+								if data["LinkedHeal"] == true then
+									focus = "Both"
+								end
 								local t = task.wait()
 								timeAccumulated += t
 								GUIObject.repairDisplay.Offset = Vector2.new(timeAccumulated/timeRequired,0)
@@ -16938,7 +17254,10 @@ function RoClothes(Player)
 									timeAccumulated = 0
 									if focus == "TopHP" then
 										data["SavedTopHP"]=0
-									else
+									elseif focus == "BottomHP" then
+										data["SavedBottomHP"]=0
+									elseif focus == "Both" then
+										data["SavedTopHP"]=0
 										data["SavedBottomHP"]=0
 									end
 								end
@@ -17138,6 +17457,13 @@ function RoClothes(Player)
 
 	local collisionList = {}
 	local collisionChecks = {}
+
+	-- FP ignore list cache
+	local fpCache = {ignoreList={}, dirty=true, lastChar=nil, conn1=nil, conn2=nil, params=RaycastParams.new()}
+	fpCache.params.FilterType = Enum.RaycastFilterType.Exclude
+	table.insert(AllConnect, Method2CharacterFolder.DescendantAdded:Connect(function() fpCache.dirty = true end))
+	table.insert(AllConnect, Method2CharacterFolder.DescendantRemoving:Connect(function() fpCache.dirty = true end))
+
 	--[[
 	for i, v in pairs(workspace:GetDescendants()) do
 		if v:IsA("BasePart") and v.CanCollide == false then
@@ -17171,6 +17497,7 @@ function RoClothes(Player)
 
 	local aWhile = task.spawn(function()
 		while task.wait() do
+			local ok, err = pcall(function()
 			local lP = game:GetService("Players").LocalPlayer
 			if PlayerData[lP.Name].FPerson == true then
 				PlayerData[lP.Name].updateCooldown = true
@@ -17194,25 +17521,40 @@ function RoClothes(Player)
 								d = 0
 							end
 
-							local ignoreList = {}
-							for i, v in pairs(collisionList) do
-								table.insert(ignoreList,v)
+							if fpCache.lastChar ~= char then
+								fpCache.lastChar = char
+								if fpCache.conn1 then fpCache.conn1:Disconnect() end
+								if fpCache.conn2 then fpCache.conn2:Disconnect() end
+								fpCache.conn1 = char.DescendantAdded:Connect(function() fpCache.dirty = true end)
+								fpCache.conn2 = char.DescendantRemoving:Connect(function() fpCache.dirty = true end)
+								fpCache.dirty = true
 							end
-							for i, v in pairs(Player.Character:GetDescendants()) do
-								if v:IsA("BasePart") then
-									table.insert(ignoreList,v)
+							if fpCache.dirty then
+								fpCache.ignoreList = {}
+								for i, v in pairs(collisionList) do
+									table.insert(fpCache.ignoreList, v)
 								end
-							end
-							for i, v in pairs(Method2CharacterFolder:GetDescendants()) do
-								if v:IsA("BasePart") then
-									table.insert(ignoreList,v)
+								for i, v in pairs(char:GetDescendants()) do
+									if v:IsA("BasePart") then
+										table.insert(fpCache.ignoreList, v)
+									end
 								end
+								for i, v in pairs(Method2CharacterFolder:GetDescendants()) do
+									if v:IsA("BasePart") then
+										table.insert(fpCache.ignoreList, v)
+									end
+								end
+								fpCache.params.FilterDescendantsInstances = fpCache.ignoreList
+								fpCache.dirty = false
 							end
 
-							local hit, pos = game.Workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
+							local _fpResult = game.Workspace:Raycast(ray.Origin, ray.Direction, fpCache.params)
+							local hit = _fpResult and _fpResult.Instance
+							local pos = _fpResult and _fpResult.Position
 
 							if hit and hit.CanCollide == false and not collisionChecks[hit] then
-								table.insert(collisionList,hit)
+								table.insert(collisionList, hit)
+								fpCache.dirty = true  -- collisionList changed; rebuild cache next tick
 								local collisionChange = hit:GetPropertyChangedSignal("CanCollide"):Connect(function()
 									if hit.CanCollide == false and not table.find(collisionList,hit) then
 										table.insert(collisionList,hit)
@@ -17833,7 +18175,7 @@ function RoClothes(Player)
 									end
 									if PData.BottomHP ~= "" then
 										GUIObject.bottomHPDisplay.Text = math.clamp(math.round((1-(h.MaxHealth-h.Health)/PData.BottomHP)*100),0,100).."%"
-										GUIObject.bottomHPDisplay.TextColor3 = Color3.new(1-(1-(h.MaxHealth-h.Health)/PData.BottomHP),(1-(h.MaxHealth-h.Health)/PData.BottomHP),0)
+										GUIObject.topHPDisplay.TextColor3 = Color3.new(1-(1-(h.MaxHealth-h.Health)/PData.BottomHP),(1-(h.MaxHealth-h.Health)/PData.BottomHP),0)
 									else
 										GUIObject.bottomHPDisplay.Text = ""
 									end
@@ -17846,6 +18188,15 @@ function RoClothes(Player)
 
 			end
 
+		end) -- pcall
+		if not ok then warn("[RoClothes] aWhile error:", err) end
+		end
+	end)
+
+	-- V4.3.48: ensure FP raycast loop is stopped on session teardown (formerly relied on BREAKER.Destroying cascading errors to kill it).
+	GlobalMaid:Give(function()
+		if aWhile then
+			pcall(task.cancel, aWhile)
 		end
 	end)
 
@@ -17877,13 +18228,13 @@ function RoClothes(Player)
 				local Part = Property.Part
 				local Weld = Property.Weld
 				local Base = Property.Base
-				local BaseSize = R15Size[Base.Name]
+				local BaseSize = System.R15Size[Base.Name]
 				if DataList.Character and DataList.Character:FindFirstChild(Base.Name) and DataList.Character:FindFirstChild(Base.Name):FindFirstChild("OriginalSize") then
 					BaseSize = DataList.Character:FindFirstChild(Base.Name):FindFirstChild("OriginalSize").Value
 				end
 
 				if Base:IsA("MeshPart") and Base.MeshId == "http://www.roblox.com/asset/?id=542765884" then
-					BaseSize = R15Size["UpperTorsoFemale"]
+					BaseSize = System.R15Size["UpperTorsoFemale"]
 				end
 
 				local XMultiply, YMultiply, ZMultiply = Function.MultiplyCalculate(Base.Size, BaseSize)
@@ -17894,8 +18245,8 @@ function RoClothes(Player)
 				Part.LocalTransparencyModifier = 1
 
 				if PlayerData[lP.Name].MeshSizeLock == false then
-					Part.Size = Vector3.new(R6Size[Name].X * XMultiply, R6Size[Name].Y * YMultiply, R6Size[Name].Z * ZMultiply)
-					Weld.C0 = CFrame.new(WeldCFrame[Name].Position.X * XMultiply, WeldCFrame[Name].Position.Y * YMultiply, WeldCFrame[Name].Position.Z * ZMultiply) * WeldCFrame[Name].Rotation
+					Part.Size = Vector3.new(System.R6Size[Name].X * XMultiply, System.R6Size[Name].Y * YMultiply, System.R6Size[Name].Z * ZMultiply)
+					Weld.C0 = CFrame.new(System.WeldCFrame[Name].Position.X * XMultiply, System.WeldCFrame[Name].Position.Y * YMultiply, System.WeldCFrame[Name].Position.Z * ZMultiply) * System.WeldCFrame[Name].Rotation
 				end
 			end
 
@@ -18040,6 +18391,24 @@ function RoClothes(Player)
 									end
 								end)
 								table.insert(AllConnect,changed)
+								-- V4.3.51: reconcile highlights list on direct Destroy — Changed does not fire
+								-- reliably when a Highlight is Destroy()'d while still parented to the character,
+								-- so the list entry + replicate would leak monotonically across respawns.
+								local destroyingConn
+								destroyingConn = h.Destroying:Connect(function()
+									local idx = table.find(highlights,h)
+									if idx then
+										table.remove(highlights,idx)
+									end
+									if replicate then
+										replicate:Destroy()
+									end
+									if changed then
+										changed:Disconnect()
+									end
+									destroyingConn:Disconnect()
+								end)
+								table.insert(AllConnect,destroyingConn)
 							end
 						end
 					end
@@ -18223,9 +18592,24 @@ function RoClothes(Player)
 						Part.Transparency = Base.Transparency
 					end
 					if PlayerName == lP.Name then
-						if PlayerData[PlayerName].LocalTransparency[Base.Name] == true 
-							and PlayerData[PlayerName].LocalTransparency["Hat"] == true then
-							Part.LocalTransparencyModifier = Part.Transparency
+						local isPartHidden = false
+						-- Rig-Aware Transparency Check
+						if PlayerData[PlayerName].LocalTransparency[Base.Name] == true then
+							isPartHidden = true
+						else
+							-- Check if this R15 part belongs to an R6 group that is hidden
+							for r6Name, r15Parts in pairs(RigMap) do
+								if table.find(r15Parts, Base.Name) and PlayerData[PlayerName].LocalTransparency[r6Name] == true then
+									isPartHidden = true
+									break
+								end
+							end
+						end
+
+						if isPartHidden and PlayerData[PlayerName].LocalTransparency["Hat"] == true then
+							if Part.LocalTransparencyModifier ~= Part.Transparency then
+								Part.LocalTransparencyModifier = Part.Transparency
+							end
 						elseif Method == 2 then
 							if lP.Character and lP.Character:FindFirstChild("HumanoidRootPart") then
 								local chr = lP.Character
@@ -18381,10 +18765,12 @@ function RoClothes(Player)
 									table.insert(ignoreList,v)
 								end
 							end
-							local instance,hit = workspace:FindPartOnRayWithIgnoreList(
-								Ray.new(origin.Position,Vector3.new(0,-10000,0)),
-								ignoreList
-							)
+							local _groundParams = RaycastParams.new()
+							_groundParams.FilterDescendantsInstances = ignoreList
+							_groundParams.FilterType = Enum.RaycastFilterType.Exclude
+							local _groundResult = workspace:Raycast(origin.Position, Vector3.new(0,-10000,0), _groundParams)
+							local instance = _groundResult and _groundResult.Instance
+							local hit = _groundResult and _groundResult.Position
 							if hit then
 								if instance.CanCollide == false and not collisionChecks[instance] then
 									table.insert(collisionList,instance)
@@ -18499,7 +18885,7 @@ function RoClothes(Player)
 					end
 				end
 			end
-			
+
 			for Part, Property in pairs(DataList.CurrentPartList.Link) do
 				local Removed = false
 
@@ -18518,7 +18904,7 @@ function RoClothes(Player)
 
 					Part.LocalTransparencyModifier = math.clamp(Property.T.LocalTransparencyModifier,D,math.huge)
 					Part.Transparency = math.clamp(T,D,math.huge)
-					
+
 					if Property.Color and Property.Color.Color then
 						Part.Color = Property.Color.Color
 					end
@@ -18545,171 +18931,125 @@ function RoClothes(Player)
 		GUIObject.ViewportCamera.CFrame = CFrame.lookAt(Vector3.new(math.sin(PreviewRotate)*PreviewRadius, 0, math.cos(PreviewRotate)*PreviewRadius), Vector3.new(0,0,0))
 	end)
 
+	-- V4.3.47: Physics error throttle — surface silent pcall failures at most once per 5s per unique error message.
+	-- V4.3.50: physicsWarnState / PHYSICS_WARN_COOLDOWN moved to file scope for register-cap reasons.
 	local PhysicsConnect = RS.RenderStepped:Connect(function(d)
 		for PlayerName, DataList in pairs(PlayerData) do
-			for Part, Property in pairs(DataList.CurrentPartList.BodyPartPhysics) do
-				task.spawn(function()
+			for Part, Property in pairs(DataList.CurrentPartList.BodyPartPhysics or {}) do
+				-- Sequential Execution: Avoid task.spawn flooding for better stability and lower CPU overhead
+				local success, err = pcall(function()
+					-- Physics Resilience Guard: Skip this frame if mandatory objects are missing
+					if not Part or not Part.Parent or not Property.Base or not Property.Base.Parent or not Property.Weld or not Property.Weld.Parent then
+						return
+					end
+
 					if Function.FallenPartCheck(Part) then
 						DataList.CurrentPartList.BodyPartPhysics[Part] = nil
-
 						return
 					end
 
 					local Character = DataList.Character
-					local Human = Character:FindFirstChildOfClass("Humanoid")
+					local Human = Character and Character:FindFirstChildOfClass("Humanoid")
+					if not Character or not Human then return end
 
-					if Character and Human then
-						local Base = Property.Base
-						local Camera = game.Workspace.CurrentCamera
+					local Base = Property.Base
+					local Camera = workspace.CurrentCamera
+					local CurrentCFrame = Base.CFrame
 
-						local CurrentCFrame = Base.CFrame
+					local OriginCFrame = Property.OriginCFrame
+					local OriginPosition = OriginCFrame.Position
+					local CurrentPosition = CurrentCFrame.Position
+					local PositionDistance = (OriginPosition - CurrentPosition)
 
-						local OriginCFrame = Property.OriginCFrame
-						local OriginPosition = OriginCFrame.Position
-						local CurrentPosition = CurrentCFrame.Position
-						local PositionDistance = (OriginPosition - CurrentPosition)
+					-- Proximity LOD + teleport sanity check (matches reference)
+					if (Camera.CFrame.Position - Base.Position).Magnitude < 300
+						and (PositionDistance.Magnitude < math.max(Human.WalkSpeed/8,1) or PositionDistance.Magnitude <= Base.AssemblyLinearVelocity.Magnitude) then
+						local Weld = Property.Weld
+						local CF = Property.CF
+						local CF1 = Property.CF1
+						local Spring = Property.Spring
+						local PositionOffset = Property.PositionOffset
+						local RotationOffset = Property.RotationOffset
+						local Position = Property.Position
+						local Rotation = Property.Rotation
 
-						--[[print(Function.Round(PositionDistance.Magnitude,2),math.max(Human.WalkSpeed/8,1),Function.Round(Base.AssemblyLinearVelocity.Magnitude,2))]]
-						if (Camera.CFrame.Position - Base.Position).Magnitude < 300 
-							and (PositionDistance.Magnitude < math.max(Human.WalkSpeed/8,1) or PositionDistance.Magnitude <= Base.AssemblyLinearVelocity.Magnitude) then
-							local Weld = Property.Weld
-							local CF = Property.CF
-							local CF1 = Property.CF1
-							local Spring = Property.Spring
-							local PositionOffset = Property.PositionOffset
-							local RotationOffset = Property.RotationOffset
-							local Position = Property.Position
-							local Rotation = Property.Rotation
+						local OriginLookVector = OriginCFrame.LookVector
+						local CurrentLookVector = CurrentCFrame.LookVector
+						local LookVectorDistance = (OriginLookVector - CurrentLookVector)
+						local LookVectorAxis = Vector3.new(LookVectorDistance.X, LookVectorDistance.Y, LookVectorDistance.Z)
 
-							local OriginLookVector = OriginCFrame.LookVector
-							local CurrentLookVector = CurrentCFrame.LookVector
-							local LookVectorDistance = (OriginLookVector - CurrentLookVector)
-							local LookVectorAxis = Vector3.new(LookVectorDistance.X, LookVectorDistance.Y, LookVectorDistance.Z--[[0]])
+						Spring:TimeSkip(d)
+						Spring:Impulse(PositionDistance + LookVectorAxis)
 
-							Spring:TimeSkip(d)
-							Spring:Impulse(PositionDistance + LookVectorAxis)
+						local PositionList = {X = 0, Y = 0, Z = 0}
+						local RotationList = {X = 0, Y = 0, Z = 0}
 
-							local PositionList = {
-								X = 0,
-								Y = 0,
-								Z = 0
-							}
-
-							local RotationList = {
-								X = 0,
-								Y = 0,
-								Z = 0
-							}
-
-							for From, To in pairs(PositionOffset) do
-								PositionList[From] = (Position[To] * Spring.Velocity[To]) * PositionPhysicsMultiply
-							end
-
-							for From, To in pairs(RotationOffset) do
-								RotationList[From] = (math.rad(Rotation[To] * Spring.Velocity[To])) * RotationPhysicsMultiply
-							end
-
-							Weld.C0 = CF * (
-								CFrame.new(
-									PositionList.X,
-									PositionList.Y,
-									PositionList.Z
-								) * CFrame.Angles(
-									RotationList.X,
-									RotationList.Y,
-									RotationList.Z
-								)
-							)
-
-							if DataList["PhysicsObeyGravity"] == true then
-
-								if Part.Name == "Left Breast" then
-									Part:AddTag("AppliedPhysics")
-									local frame = Base.CFrame
-
-									if Property.BreastsType == 2 then -- type2
-										Weld.C1 = CF1 * CFrame.Angles(
-											math.abs(OriginLookVector.Y)*-math.clamp(frame.LookVector.Y,-math.huge,.35),
-											0,
-											-frame.RightVector.Y
-										)
-									elseif Property.BreastsType == 3 then -- type3
-										Weld.C1 = CF1 * CFrame.Angles(
-											(-frame.LookVector.Y*.2)-frame.RightVector.Y,
-											0,
-											math.abs(OriginLookVector.Y)*math.clamp(frame.LookVector.Y,-math.huge,.35)
-										)
-									elseif Property.BreastsType == 5 then -- type2
-										Weld.C1 = CF1 * CFrame.Angles(
-											math.abs(OriginLookVector.Y)*math.clamp(frame.LookVector.Y,-math.huge,.35),
-											0,
-											frame.RightVector.Y
-										)
-									else -- default
-										Weld.C1 = CF1 * CFrame.Angles(
-											(frame.LookVector.Y*.2)+frame.RightVector.Y,
-											0,
-											math.abs(OriginLookVector.Y)*-math.clamp(frame.LookVector.Y,-math.huge,.35)
-										)
-									end
-
-								elseif Part.Name == "Right Breast" then
-									Part:AddTag("AppliedPhysics")
-									local frame = Base.CFrame
-
-									if Property.BreastsType == 2 then -- type2
-										Weld.C1 = CF1 * CFrame.Angles(
-											math.abs(OriginLookVector.Y)*-math.clamp(frame.LookVector.Y,-math.huge,.35),
-											0,
-											-frame.RightVector.Y
-										)
-									elseif Property.BreastsType == 3 then -- type3
-										Weld.C1 = CF1 * CFrame.Angles(
-											(frame.LookVector.Y*.2)-frame.RightVector.Y,
-											0,
-											math.abs(OriginLookVector.Y)*math.clamp(frame.LookVector.Y,-math.huge,.35)
-										)
-									elseif Property.BreastsType == 5 then -- type5
-										Weld.C1 = CF1 * CFrame.Angles(
-											math.abs(OriginLookVector.Y)*math.clamp(frame.LookVector.Y,-math.huge,.35),
-											0,
-											frame.RightVector.Y
-										)
-									else -- default
-										Weld.C1 = CF1 * CFrame.Angles(
-											(-frame.LookVector.Y*.2)+frame.RightVector.Y,
-											0,
-											math.abs(OriginLookVector.Y)*-math.clamp(frame.LookVector.Y,-math.huge,.35)
-										)
-									end
-
-
-								elseif Part.Name == "Breasts Shirt" or Part.Name == "Breasts Pants" then
-									local frame = Base.CFrame
-									Weld.C1 = CF1 * CFrame.Angles(
-										frame.RightVector.Y,
-										0,
-										math.abs(OriginLookVector.Y)*-math.clamp(frame.LookVector.Y,-math.huge,.42)
-									)
-								end
-
-							elseif Part:HasTag("AppliedPhysics") then
-
-								if Part.Name == "Left Breast" 
-									or Part.Name == "Right Breast" 
-									or Part.Name == "Breasts Shirt" or Part.Name == "Breasts Pants" then
-									Weld.C1 = CF1
-									Part:RemoveTag("AppliedPhysics")
-								end
-
-							end
-						--[[else
-							warn("IT WENT ABOVE")]]
+						for From, To in pairs(PositionOffset) do
+							PositionList[From] = (Position[To] * Spring.Velocity[To]) * PositionPhysicsMultiply
 						end
 
-						PlayerData[PlayerName].CurrentPartList.BodyPartPhysics[Part].OriginCFrame = CurrentCFrame
+						for From, To in pairs(RotationOffset) do
+							RotationList[From] = (math.rad(Rotation[To] * Spring.Velocity[To])) * RotationPhysicsMultiply
+						end
+
+						Weld.C0 = CF * (
+							CFrame.new(PositionList.X, PositionList.Y, PositionList.Z) * 
+							CFrame.Angles(RotationList.X, RotationList.Y, RotationList.Z)
+						)
+
+						if DataList["PhysicsObeyGravity"] == true then
+							if Part.Name == "Left Breast" then
+								Part:AddTag("AppliedPhysics")
+								local frame = Base.CFrame
+
+								if Property.BreastsType == 2 then
+									Weld.C1 = CF1 * CFrame.Angles(math.abs(OriginLookVector.Y)*-math.clamp(frame.LookVector.Y,-math.huge,.35), 0, -frame.RightVector.Y)
+								elseif Property.BreastsType == 3 then
+									Weld.C1 = CF1 * CFrame.Angles((-frame.LookVector.Y*.2)-frame.RightVector.Y, 0, math.abs(OriginLookVector.Y)*math.clamp(frame.LookVector.Y,-math.huge,.35))
+								elseif Property.BreastsType == 5 then
+									Weld.C1 = CF1 * CFrame.Angles(math.abs(OriginLookVector.Y)*math.clamp(frame.LookVector.Y,-math.huge,.35), 0, frame.RightVector.Y)
+								else
+									Weld.C1 = CF1 * CFrame.Angles((frame.LookVector.Y*.2)+frame.RightVector.Y, 0, math.abs(OriginLookVector.Y)*-math.clamp(frame.LookVector.Y,-math.huge,.35))
+								end
+
+							elseif Part.Name == "Right Breast" then
+								Part:AddTag("AppliedPhysics")
+								local frame = Base.CFrame
+
+								if Property.BreastsType == 2 then
+									Weld.C1 = CF1 * CFrame.Angles(math.abs(OriginLookVector.Y)*-math.clamp(frame.LookVector.Y,-math.huge,.35), 0, -frame.RightVector.Y)
+								elseif Property.BreastsType == 3 then
+									Weld.C1 = CF1 * CFrame.Angles((frame.LookVector.Y*.2)-frame.RightVector.Y, 0, math.abs(OriginLookVector.Y)*math.clamp(frame.LookVector.Y,-math.huge,.35))
+								elseif Property.BreastsType == 5 then
+									Weld.C1 = CF1 * CFrame.Angles(math.abs(OriginLookVector.Y)*math.clamp(frame.LookVector.Y,-math.huge,.35), 0, frame.RightVector.Y)
+								else
+									Weld.C1 = CF1 * CFrame.Angles((-frame.LookVector.Y*.2)+frame.RightVector.Y, 0, math.abs(OriginLookVector.Y)*-math.clamp(frame.LookVector.Y,-math.huge,.35))
+								end
+
+							elseif Part.Name == "Breasts Shirt" or Part.Name == "Breasts Pants" then
+								local frame = Base.CFrame
+								Weld.C1 = CF1 * CFrame.Angles(frame.RightVector.Y, 0, math.abs(OriginLookVector.Y)*-math.clamp(frame.LookVector.Y,-math.huge,.42))
+							end
+
+						elseif Part:HasTag("AppliedPhysics") then
+							if Part.Name == "Left Breast" or Part.Name == "Right Breast" or Part.Name == "Breasts Shirt" or Part.Name == "Breasts Pants" then
+								Weld.C1 = CF1
+								Part:RemoveTag("AppliedPhysics")
+							end
+						end
 					end
+					Property.OriginCFrame = CurrentCFrame
 				end)
+
+				if not success then
+					local errKey = tostring(err)
+					local now = os.clock()
+					local last = physicsWarnState[errKey]
+					if not last or (now - last) > PHYSICS_WARN_COOLDOWN then
+						physicsWarnState[errKey] = now
+						warn("Ro-Clothes Physics Exception: " .. errKey)
+					end
+				end
 			end
 		end
 	end)
@@ -18740,20 +19080,20 @@ function RoClothes(Player)
 				-- DeltaTime is maxed incase of spontaneous "frame jumps".
 				local deltaTime = math.min(deltaTime, 0.1) * DataList.tailSettings.timeScale
 
-				if not tailVariables[PlayerName] then
-					tailVariables[PlayerName] = {}
-					for i, v in pairs(tailVariables.Default)  do
-						tailVariables[PlayerName][i] = v
+				if not System.tailVariables[PlayerName] then
+					System.tailVariables[PlayerName] = {}
+					for i, v in pairs(System.tailVariables.Default)  do
+						System.tailVariables[PlayerName][i] = v
 					end
 				end
-				tailVariables[PlayerName].tailScaledAnimationTime += deltaTime * DataList.tailSettings.wagAnimationSpeed
-				tailVariables[PlayerName].tailScaledTime += deltaTime
-				tailVariables[PlayerName].accumulator += deltaTime
+				System.tailVariables[PlayerName].tailScaledAnimationTime += deltaTime * DataList.tailSettings.wagAnimationSpeed
+				System.tailVariables[PlayerName].tailScaledTime += deltaTime
+				System.tailVariables[PlayerName].accumulator += deltaTime
 
 				-- Get stepCount.
 				local stepCount = 0 -- ~ 1 to 2 at 60fps.
-				while tailVariables[PlayerName].accumulator >= timeStep do
-					tailVariables[PlayerName].accumulator -= timeStep
+				while System.tailVariables[PlayerName].accumulator >= timeStep do
+					System.tailVariables[PlayerName].accumulator -= timeStep
 					stepCount += 1
 				end
 
@@ -18786,7 +19126,7 @@ function RoClothes(Player)
 				local unixTime = DateTime.now().UnixTimestampMillis * 0.001 * DataList.tailSettings.timeScale
 
 				local interpolate = stepCount == 0 -- No physics being computed this frame (ahead of physics step schedule).
-				local interpolationAlpha = tailVariables[PlayerName].accumulator * inverseTimeStep -- Used in interpolation.
+				local interpolationAlpha = System.tailVariables[PlayerName].accumulator * inverseTimeStep -- Used in interpolation.
 
 				-- Update tails.
 				local tailsUpdated = 0
@@ -18876,7 +19216,11 @@ function RoClothes(Player)
 						for i, v in pairs(targets) do
 							blacklist[i] = v
 						end
-						local target = workspace:FindPartOnRayWithIgnoreList(Ray.new(ray.Origin,ray.Direction*999), blacklist)
+						local _invisParams = RaycastParams.new()
+						_invisParams.FilterDescendantsInstances = blacklist
+						_invisParams.FilterType = Enum.RaycastFilterType.Exclude
+						local _invisResult = workspace:Raycast(ray.Origin, ray.Direction * 999, _invisParams)
+						local target = _invisResult and _invisResult.Instance
 						if target then
 							table.insert(targets, target)
 						end
@@ -18892,32 +19236,43 @@ function RoClothes(Player)
 				p.RespectCanCollide = true
 				p.FilterDescendantsInstances = {Part,findAllInvisOnRay()}
 				p.FilterType = Enum.RaycastFilterType.Exclude
-				local r = workspace:Raycast(ray.Origin,ray.Direction*999,p)
-				if r and r.Instance:FindFirstAncestorOfClass("Model") ~= game:GetService("Players").LocalPlayer.Character then
-					Part = r.Instance
-				end
-			end
 
-			if Part and Part:FindFirstAncestorOfClass("Model") ~= nil then
-				if Function.IsCharacter(Part:FindFirstAncestorOfClass("Model")) then
-					Function.CharacterReset(Part:FindFirstAncestorOfClass("Model"))
-					if PS:FindFirstChild(Part:FindFirstAncestorOfClass("Model").Name) == nil and PlayerData[SelectPlayer] ~= nil then
-						local NPCData = math.random(0, 999999999).. Part:FindFirstAncestorOfClass("Model").Name
-						if Function.TableFind(NPCs, Part:FindFirstAncestorOfClass("Model")) == nil then
-							NPCs[NPCData] = Part:FindFirstAncestorOfClass("Model")
-						else
-							NPCData = Function.TableFind(NPCs, Part:FindFirstAncestorOfClass("Model"))
+				for i, v in pairs(game:GetService("PhysicsService"):GetCollisionGroups()) do
+					p.CollisionGroup = v.name
+					local r = workspace:Raycast(ray.Origin,ray.Direction*999,p)
+					if r and r.Instance:FindFirstAncestorOfClass("Model") ~= game:GetService("Players").LocalPlayer.Character then
+						Part = r.Instance
+						if Function.IsCharacter(Part:FindFirstAncestorOfClass("Model")) then
+							break
 						end
-						local cDataTable = Function.TableClone(PlayerData[SelectPlayer])
-						cDataTable.CurrentPartList = Function.PlayerDataDefault().CurrentPartList
-						PlayerData[NPCData] = cDataTable
-						Function.CharacterExecute(Part:FindFirstAncestorOfClass("Model"), NPCData)
-					else
-						Function.CharacterReset(Part:FindFirstAncestorOfClass("Model").Name)
-						Function.CharacterExecute(Part:FindFirstAncestorOfClass("Model"), Part:FindFirstAncestorOfClass("Model").Name)
 					end
 				end
+
 			end
+
+			local ok, err = pcall(function()
+				if Part and Part:FindFirstAncestorOfClass("Model") ~= nil then
+					if Function.IsCharacter(Part:FindFirstAncestorOfClass("Model")) then
+						Function.CharacterReset(Part:FindFirstAncestorOfClass("Model"))
+						if PS:FindFirstChild(Part:FindFirstAncestorOfClass("Model").Name) == nil and PlayerData[SelectPlayer] ~= nil then
+							local NPCData = math.random(0, 999999999).. Part:FindFirstAncestorOfClass("Model").Name
+							if Function.TableFind(System.NPCs, Part:FindFirstAncestorOfClass("Model")) == nil then
+								System.NPCs[NPCData] = Part:FindFirstAncestorOfClass("Model")
+							else
+								NPCData = Function.TableFind(System.NPCs, Part:FindFirstAncestorOfClass("Model"))
+							end
+							local cDataTable = Function.TableClone(PlayerData[SelectPlayer])
+							cDataTable.CurrentPartList = Function.PlayerDataDefault().CurrentPartList
+							PlayerData[NPCData] = cDataTable
+							Function.CharacterExecute(Part:FindFirstAncestorOfClass("Model"), NPCData, nil, cDataTable.LastRequestID)
+						else
+							Function.CharacterReset(Part:FindFirstAncestorOfClass("Model").Name)
+							Function.CharacterExecute(Part:FindFirstAncestorOfClass("Model"), Part:FindFirstAncestorOfClass("Model").Name, nil, PlayerData[Part:FindFirstAncestorOfClass("Model").Name].LastRequestID)
+						end
+					end
+				end
+			end)
+			if not ok then warn("[RoClothes] ClickExecute error:", err) end
 			cooldown = false
 		end
 	end)
@@ -18938,7 +19293,11 @@ function RoClothes(Player)
 						for i, v in pairs(targets) do
 							blacklist[i] = v
 						end
-						local target = workspace:FindPartOnRayWithIgnoreList(Ray.new(ray.Origin,ray.Direction*999), blacklist)
+						local _invisParams = RaycastParams.new()
+						_invisParams.FilterDescendantsInstances = blacklist
+						_invisParams.FilterType = Enum.RaycastFilterType.Exclude
+						local _invisResult = workspace:Raycast(ray.Origin, ray.Direction * 999, _invisParams)
+						local target = _invisResult and _invisResult.Instance
 						if target then
 							table.insert(targets, target)
 						end
@@ -18954,9 +19313,16 @@ function RoClothes(Player)
 				p.RespectCanCollide = true
 				p.FilterDescendantsInstances = {Part,findAllInvisOnRay()}
 				p.FilterType = Enum.RaycastFilterType.Exclude
-				local r = workspace:Raycast(ray.Origin,ray.Direction*999,p)
-				if r and r.Instance:FindFirstAncestorOfClass("Model") ~= game:GetService("Players").LocalPlayer.Character then
-					Part = r.Instance
+				
+				for i, v in pairs(game:GetService("PhysicsService"):GetCollisionGroups()) do
+					p.CollisionGroup = v.name
+					local r = workspace:Raycast(ray.Origin,ray.Direction*999,p)
+					if r and r.Instance:FindFirstAncestorOfClass("Model") ~= game:GetService("Players").LocalPlayer.Character then
+						Part = r.Instance
+						if Function.IsCharacter(Part:FindFirstAncestorOfClass("Model")) then
+							break
+						end
+					end
 				end
 			end
 
@@ -19043,12 +19409,12 @@ function RoClothes(Player)
 	--------------------------------------------------------------------------------------------------------------
 	--------------------------------------------------------------------------------------------------------------
 
-       ██╗░░░██╗░██████╗███████╗██████╗░  ██╗███╗░░██╗████████╗███████╗██████╗░███████╗░█████╗░░█████╗░███████╗
-       ██║░░░██║██╔════╝██╔════╝██╔══██╗  ██║████╗░██║╚══██╔══╝██╔════╝██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔════╝
-       ██║░░░██║╚█████╗░█████╗░░██████╔╝  ██║██╔██╗██║░░░██║░░░█████╗░░██████╔╝█████╗░░███████║██║░░╚═╝█████╗░░
-       ██║░░░██║░╚═══██╗██╔══╝░░██╔══██╗  ██║██║╚████║░░░██║░░░██╔══╝░░██╔══██╗██╔══╝░░██╔══██║██║░░██╗██╔══╝░░
-       ╚██████╔╝██████╔╝███████╗██║░░██║  ██║██║░╚███║░░░██║░░░███████╗██║░░██║██║░░░░░██║░░██║╚█████╔╝███████╗
-       ░╚═════╝░╚═════╝░╚══════╝╚═╝░░╚═╝  ╚═╝╚═╝░░╚══╝░░░╚═╝░░░╚══════╝╚═╝░░╚═╝╚═╝░░░░░╚═╝░░╚═╝░╚════╝░╚══════╝
+       
+       
+       
+       
+       
+       
                                   
 	--------------------------------------------------------------------------------------------------------------
 	--------------------------------------------------------------------------------------------------------------
@@ -19067,7 +19433,7 @@ function RoClothes(Player)
 	--------------------------------------------------------------------------------------------------------------
 	--------------------------------------------------------------------------------------------------------------
 	]]
-	
+
 	function Function.compileOvertime()
 		task.spawn(function()
 			local filesFound = env.listfiles("RClothesLerp/Bundles")
@@ -19109,10 +19475,26 @@ function RoClothes(Player)
 			end
 		end)
 	end
-	
+
 
 	local HPButtons = {}
 	function Function.GUIFunc()
+		-- V4.3.35: tab highlighting helper
+		local TAB_ACTIVE_COLOR   = Color3.fromRGB(95, 55, 185)
+		local TAB_INACTIVE_COLOR = Color3.fromRGB(38, 32, 60)
+		local function refreshTabColors(activeButtonName)
+			for _, Btn in pairs(GUIObject.ButtonFrame:GetChildren()) do
+				local grad = Btn:FindFirstChildOfClass("UIGradient")
+				if grad then
+					if Btn.Name == activeButtonName then
+						grad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, TAB_ACTIVE_COLOR), ColorSequenceKeypoint.new(1, TAB_ACTIVE_COLOR)}
+					else
+						grad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, TAB_INACTIVE_COLOR), ColorSequenceKeypoint.new(1, TAB_INACTIVE_COLOR)}
+					end
+				end
+			end
+		end
+
 		for _, Button in pairs(GUIObject.ButtonFrame:GetChildren()) do
 			if Button:FindFirstChildOfClass("TextButton") then
 				Button:FindFirstChildOfClass("TextButton").MouseButton1Click:Connect(function()
@@ -19124,6 +19506,7 @@ function RoClothes(Player)
 
 					local Page = GUIObject.PageFrame:WaitForChild(Button.Name)
 					Page.Visible = true
+					refreshTabColors(Button.Name)
 					if Page.Name == "HP" then
 						for i, v in pairs(GUIObject.HPListFrame:GetChildren()) do
 							if not v:IsA("UIGridLayout") then
@@ -19131,8 +19514,7 @@ function RoClothes(Player)
 							end
 						end
 						for i, v in pairs(HPButtons) do
-							v:Disconnect()
-							table.remove(AllConnect,table.find(AllConnect, v))
+							System.GlobalMaid:Remove(v)
 						end
 						HPButtons = {}
 
@@ -19243,6 +19625,25 @@ function RoClothes(Player)
 			local Page = GUIObject.PageFrame:WaitForChild(GUIObject.optionsButton.Name)
 			Page.Visible = true
 		end)
+		-- Hot-swap helper: resets and re-executes the selected player in one call.
+		-- Used by clothes toggle, catalog accessory, outfit, etc. so user doesn't
+		-- have to click Execute manually after every change.
+		local hotSwapDebounce = false
+		local function hotSwap()
+			if hotSwapDebounce then return end
+			hotSwapDebounce = true
+			local ep = PS:FindFirstChild(SelectPlayer)
+			if ep and ep.Character then
+				PlayerData[SelectPlayer].LastRequestID = PlayerData[SelectPlayer].LastRequestID + 1
+				local rid = PlayerData[SelectPlayer].LastRequestID
+				Function.CharacterReset(ep.Name)
+				local ok, err = pcall(Function.CharacterExecute, ep.Character, ep.Name, nil, rid)
+				if not ok then warn("[RoClothes] hotSwap error:", err) end
+			end
+			hotSwapDebounce = false
+			Function.GUIUpdate()
+		end
+
 		local debounce = false
 		local ExecuteConnect = GUIObject.ExecuteButton.MouseButton1Click:Connect(function()
 			if debounce == false then
@@ -19253,8 +19654,11 @@ function RoClothes(Player)
 					local ExecuteCharacter = ExecutePlayer.Character
 
 					if ExecuteCharacter then
+						PlayerData[SelectPlayer].LastRequestID = PlayerData[SelectPlayer].LastRequestID + 1
+						local CurrentRequestID = PlayerData[SelectPlayer].LastRequestID
 						Function.CharacterReset(ExecutePlayer.Name)
-						Function.CharacterExecute(ExecuteCharacter, ExecutePlayer.Name)
+						local ok, err = pcall(Function.CharacterExecute, ExecuteCharacter, ExecutePlayer.Name, nil, CurrentRequestID)
+						if not ok then warn("[RoClothes] CharacterExecute error:", err) end
 					end
 				end
 				debounce = false
@@ -19269,9 +19673,7 @@ function RoClothes(Player)
 		end)
 
 		local DestroyConnect = GUIObject.DestroyButton.MouseButton1Click:Connect(function()
-			local BreakerInstance = Instance.new("BoolValue", workspace)
-			BreakerInstance.Name = "RoClothesBreaker"
-			game:GetService("Debris"):AddItem(BreakerInstance,2)
+			BREAKER:Destroy()
 		end)
 
 		local DelayTimeConnect = GUIObject.DelayTimeText:GetPropertyChangedSignal("Text"):Connect(function()
@@ -19280,22 +19682,116 @@ function RoClothes(Player)
 			end
 		end)
 
-		local PlayerChangeConnect = GUIObject.PlayerExecute:GetPropertyChangedSignal("Text"):Connect(function()
-			if PS:FindFirstChild(GUIObject.PlayerExecute.Text) then
-				SelectPlayer = GUIObject.PlayerExecute.Text
-				GUIObject.PlayerExecute.TextColor3 = Color3.new(1,1,1)
-
-				Function.PlayerDataAdd(SelectPlayer)
-				Function.GUIUpdate()
-			elseif not PS:FindFirstChild(GUIObject.PlayerExecute.Text) and GUIObject.PlayerExecute.Text ~= "Self" then
-				GUIObject.PlayerExecute.TextColor3 = Color3.new(1,0,0)
-			elseif not PS:FindFirstChild(GUIObject.PlayerExecute.Text) and GUIObject.PlayerExecute.Text == "Self" then
+		-- V4.3.55: shared setter for SelectPlayer. Both the PlayerExecute TextBox
+		-- and the new PlayerDropdownFrame (dropdown buttons) call this so the
+		-- validation/PlayerDataAdd/GUIUpdate flow stays in one place.
+		local function setSelectPlayerByName(name)
+			if name == "Self" then
 				SelectPlayer = Player.Name
 				GUIObject.PlayerExecute.TextColor3 = Color3.new(1,1,1)
-
 				Function.GUIUpdate()
+				return true
+			elseif PS:FindFirstChild(name) then
+				SelectPlayer = name
+				GUIObject.PlayerExecute.TextColor3 = Color3.new(1,1,1)
+				Function.PlayerDataAdd(SelectPlayer)
+				Function.GUIUpdate()
+				return true
+			else
+				GUIObject.PlayerExecute.TextColor3 = Color3.new(1,0,0)
+				return false
+			end
+		end
+
+		-- V4.3.55: rebuild the dropdown contents. Called on initial setup and on
+		-- PlayerAdded/PlayerRemoving so the list always reflects the live server state.
+		local function positionPlayerDropdown()
+			local abs = GUIObject.PlayerFrame.AbsolutePosition
+			local sz = GUIObject.PlayerFrame.AbsoluteSize
+			local inset = 0
+			if not GUIObject.Screen.IgnoreGuiInset then inset = 36 end
+			GUIObject.PlayerDropdownFrame.Position = UDim2.fromOffset(abs.X, abs.Y + sz.Y + 4 - inset)
+			GUIObject.PlayerDropdownFrame.Size = UDim2.fromOffset(sz.X, math.floor(sz.Y * 4.5))
+		end
+
+		local function rebuildPlayerDropdown()
+			for _, child in pairs(GUIObject.PlayerDropdownFrame:GetChildren()) do
+				if child:IsA("TextButton") then
+					child:Destroy()
+				end
+			end
+
+			local entries = {"Self"}
+			for _, plr in pairs(PS:GetPlayers()) do
+				table.insert(entries, plr.Name)
+			end
+			table.sort(entries, function(a, b)
+				if a == "Self" then return true end
+				if b == "Self" then return false end
+				return a:lower() < b:lower()
+			end)
+
+			for i, name in ipairs(entries) do
+				local btn = Instance.new("TextButton")
+				btn.Name = name
+				btn.Parent = GUIObject.PlayerDropdownFrame
+				btn.Size = UDim2.new(1, -4, 0, 24)
+				btn.BackgroundColor3 = Color3.fromRGB(28, 18, 48)
+				btn.BorderSizePixel = 0
+				btn.ZIndex = 101
+				btn.Font = Enum.Font.GothamMedium
+				btn.TextColor3 = Color3.fromRGB(230, 230, 240)
+				btn.TextScaled = true
+				btn.Text = name == "Self" and ("Self (" .. Player.Name .. ")") or name
+				btn.LayoutOrder = i
+				local corner = Instance.new("UICorner")
+				corner.CornerRadius = UDim.new(0.15, 0)
+				corner.Parent = btn
+				local pad = Instance.new("UIPadding")
+				pad.PaddingLeft = UDim.new(0, 4)
+				pad.PaddingRight = UDim.new(0, 4)
+				pad.Parent = btn
+
+				local capturedName = name
+				local conn = btn.MouseButton1Click:Connect(function()
+					if setSelectPlayerByName(capturedName) then
+						GUIObject.PlayerExecute.Text = capturedName
+						GUIObject.PlayerDropdownFrame.Visible = false
+					end
+				end)
+				table.insert(AllConnect, conn)
+			end
+		end
+
+		local PlayerChangeConnect = GUIObject.PlayerExecute:GetPropertyChangedSignal("Text"):Connect(function()
+			setSelectPlayerByName(GUIObject.PlayerExecute.Text)
+		end)
+
+		-- V4.3.55: dropdown toggle wiring + live server-roster listeners.
+		local PlayerDropdownToggleConnect = GUIObject.PlayerDropdownToggle.MouseButton1Click:Connect(function()
+			GUIObject.PlayerDropdownFrame.Visible = not GUIObject.PlayerDropdownFrame.Visible
+			if GUIObject.PlayerDropdownFrame.Visible then
+				positionPlayerDropdown()
+				rebuildPlayerDropdown()
 			end
 		end)
+		table.insert(AllConnect, PlayerDropdownToggleConnect)
+
+		local PlayerAddedDropdownConnect = PS.PlayerAdded:Connect(function()
+			if GUIObject.PlayerDropdownFrame.Visible then
+				rebuildPlayerDropdown()
+			end
+		end)
+		table.insert(AllConnect, PlayerAddedDropdownConnect)
+
+		local PlayerRemovingDropdownConnect = PS.PlayerRemoving:Connect(function()
+			if GUIObject.PlayerDropdownFrame.Visible then
+				rebuildPlayerDropdown()
+			end
+		end)
+		table.insert(AllConnect, PlayerRemovingDropdownConnect)
+
+		rebuildPlayerDropdown()
 
 		local AutoExecuteConnect = GUIObject.AutoExecuteButton.MouseButton1Click:Connect(function()
 			PlayerData[SelectPlayer].AutoExecute = not PlayerData[SelectPlayer].AutoExecute
@@ -19305,14 +19801,12 @@ function RoClothes(Player)
 
 		local BundleBodyColorConnect = GUIObject.BundleBodyColorButton.MouseButton1Click:Connect(function()
 			PlayerData[SelectPlayer].BundleBodyColor = not PlayerData[SelectPlayer].BundleBodyColor
-
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 
 		local FaceConnect = GUIObject.FaceButton.MouseButton1Click:Connect(function()
 			PlayerData[SelectPlayer].Face = not PlayerData[SelectPlayer].Face
-
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 
 		local MeshSizeLockConnect = GUIObject.MeshSizeLockButton.MouseButton1Click:Connect(function()
@@ -19329,14 +19823,12 @@ function RoClothes(Player)
 
 		local MeshBasePartInvisibleConnect = GUIObject.MeshBasePartInvisibleButton.MouseButton1Click:Connect(function()
 			PlayerData[SelectPlayer].MeshBasePartInvisible = not PlayerData[SelectPlayer].MeshBasePartInvisible
-
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 
 		local BodyPartPhysicsConnect = GUIObject.BodyPartPhysicsButton.MouseButton1Click:Connect(function()
 			PlayerData[SelectPlayer].BodyPartPhysics = not PlayerData[SelectPlayer].BodyPartPhysics
-
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 
 		local ToneConnect = GUIObject.ToneButton.MouseButton1Click:Connect(function()
@@ -19348,7 +19840,7 @@ function RoClothes(Player)
 				PlayerData[SelectPlayer].Tone = "Base"
 			end
 
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 
 		local KeybindConnect = GUIObject.KeybindButton.MouseButton1Click:Connect(function()
@@ -19366,8 +19858,7 @@ function RoClothes(Player)
 			end
 
 			GUIObject.MethodButton.Text = "Method: "..Method
-
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 		local MethodConnect2 = GUIObject.MethodButton.MouseButton2Click:Connect(function()
 			Method -= 1
@@ -19377,8 +19868,7 @@ function RoClothes(Player)
 			end
 
 			GUIObject.MethodButton.Text = "Method: "..Method
-
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 
 		local UsernameConnect = GUIObject.UsernameTextbox.FocusLost:Connect(function()
@@ -19415,6 +19905,7 @@ function RoClothes(Player)
 
 									Button:Destroy()
 									AccessoryRemoveButtonConnect:Disconnect()
+									hotSwap()
 								end)
 
 								table.insert(AllConnect, AccessoryRemoveButtonConnect)
@@ -19425,7 +19916,7 @@ function RoClothes(Player)
 				end)
 			end
 
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 
 		local ShirtConnect = GUIObject.ShirtTextbox:GetPropertyChangedSignal("Text"):Connect(function()
@@ -19485,17 +19976,17 @@ function RoClothes(Player)
 		end)
 
 		local PositionPhysicsMultiplyConnect = GUIObject.PositionPhysicsMultiplyText:GetPropertyChangedSignal("Text"):Connect(function()
-			if tonumber(GUIObject.PositionPhysicsMultiplyText.Text) then
-				PositionPhysicsMultiply = GUIObject.PositionPhysicsMultiplyText.Text
-
+			local v = tonumber(GUIObject.PositionPhysicsMultiplyText.Text)
+			if v then
+				PositionPhysicsMultiply = math.clamp(v, -100, 100)
 				Function.GUIUpdate()
 			end
 		end)
 
 		local RotationPhysicsMultiplyConnect = GUIObject.RotationPhysicsMultiplyText:GetPropertyChangedSignal("Text"):Connect(function()
-			if tonumber(GUIObject.RotationPhysicsMultiplyText.Text) then
-				RotationPhysicsMultiply = GUIObject.RotationPhysicsMultiplyText.Text
-
+			local v = tonumber(GUIObject.RotationPhysicsMultiplyText.Text)
+			if v then
+				RotationPhysicsMultiply = math.clamp(v, -100, 100)
 				Function.GUIUpdate()
 			end
 		end)
@@ -19507,7 +19998,7 @@ function RoClothes(Player)
 				PlayerData[SelectPlayer].BreastsType = 1
 			end
 
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 
 		local TorsoTypeConnect = GUIObject.TorsoTypeButton.MouseButton1Down:Connect(function()
@@ -19517,7 +20008,7 @@ function RoClothes(Player)
 				PlayerData[SelectPlayer].TorsoType = 1
 			end
 
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 
 		local ArmTypeConnect = GUIObject.ArmTypeButton.MouseButton1Down:Connect(function()
@@ -19527,7 +20018,7 @@ function RoClothes(Player)
 				PlayerData[SelectPlayer].ArmType = 1
 			end
 
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 
 		local LegsTypeConnect = GUIObject.LegsTypeButton.MouseButton1Down:Connect(function()
@@ -19537,7 +20028,7 @@ function RoClothes(Player)
 				PlayerData[SelectPlayer].LegsType = 1
 			end
 
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 
 		local LegsTypeConnect = GUIObject.ButtTypeButton.MouseButton1Down:Connect(function()
@@ -19547,7 +20038,7 @@ function RoClothes(Player)
 				PlayerData[SelectPlayer].ButtType = 1
 			end
 
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 
 		local BodyTransparencyConnect = GUIObject.BodyTransparencyButton.MouseButton1Click:Connect(function()
@@ -19560,8 +20051,7 @@ function RoClothes(Player)
 				end
 			end
 			PlayerData[SelectPlayer].RealtimeBodyTransparency = not PlayerData[SelectPlayer].RealtimeBodyTransparency
-
-			Function.GUIUpdate()
+			hotSwap()
 		end)
 
 		local ClickExecuteConnect = GUIObject.ClickExecuteButton.MouseButton1Click:Connect(function()
@@ -19607,6 +20097,7 @@ function RoClothes(Player)
 				PlayerData[SelectPlayer].SkinTone = Color
 				GUIObject.SkinToneText.TextColor3 = Color
 			end
+			hotSwap()
 		end)
 
 		local NippleColorConnect = GUIObject.NippleColorText.FocusLost:Connect(function()
@@ -19614,12 +20105,15 @@ function RoClothes(Player)
 
 			if Text == "" then
 				PlayerData[SelectPlayer].NippleColor = nil
+				PlayerData[SelectPlayer].NippleColorFromBundle = false
 			else
 				local Color = Function.StringTo(Text, "RGB")
 
 				PlayerData[SelectPlayer].NippleColor = Color
+				PlayerData[SelectPlayer].NippleColorFromBundle = false
 				GUIObject.NippleColorText.TextColor3 = Color
 			end
+			hotSwap()
 		end)
 
 		local AccessoryConnect = GUIObject.AccessoryTextbox.FocusLost:Connect(function()
@@ -19638,9 +20132,11 @@ function RoClothes(Player)
 
 					Button:Destroy()
 					AccessoryButtonConnect:Disconnect()
+					hotSwap()
 				end)
 
 				table.insert(AllConnect, AccessoryButtonConnect)
+				hotSwap()
 			end
 		end)
 
@@ -19683,6 +20179,7 @@ function RoClothes(Player)
 
 										Button:Destroy()
 										AccessoryRemoveButtonConnect:Disconnect()
+										hotSwap()
 									end)
 
 									table.insert(AllConnect, AccessoryRemoveButtonConnect)
@@ -19693,7 +20190,7 @@ function RoClothes(Player)
 					end)
 				end
 
-				Function.GUIUpdate()
+				hotSwap()
 			end
 		end)
 
@@ -19713,14 +20210,8 @@ function RoClothes(Player)
 			end
 		end)
 
-		local CharacterPreviewConnect = GUIObject.PreviewButton.MouseButton1Click:Connect(function()
-			Function.CharacterPreview(SelectPlayer)
-		end)
+		GUIObject.CharacterPreviewFrame.Visible = false
 
-		local BundleButtons = {}
-		local ClothesButtons = {}
-		local RecolorButtons = {}
-		
 		local function convertTableToString(t,indent)
 			indent = indent or 0
 			local s = ""
@@ -19754,19 +20245,79 @@ function RoClothes(Player)
 			s = s .. convertTableToString(t, 1) .. "},"
 			return s
 		end
-		
-		local function checkBundle(v)
+
+		-- V4.3.54: data-driven RecolorListFrame reconciler. Nuke-and-rebuild rows from
+		-- PlayerData[SelectPlayer].ClothesRecolor + Clothes[...].Weld + PartList[...].Recolor.
+		-- Replaces 6 imperative create sites and 4 destroy sites that were the root cause of
+		-- every "stale recolor row" bug (V4.3.51 body types, V4.3.52 ClothesRecolor, V4.3.53
+		-- GUI staleness). Call after any mutation to PlayerData[SelectPlayer].ClothesRecolor.
+		local function renderRecolorList()
+			for _, child in pairs(GUIObject.RecolorListFrame:GetChildren()) do
+				if child:IsA("Frame") then
+					child:Destroy()
+				end
+			end
+			for clothName, conns in pairs(System.RecolorButtons) do
+				for _, conn in pairs(conns) do
+					System.GlobalMaid:Remove(conn)
+				end
+				System.RecolorButtons[clothName] = nil
+			end
+
+			for clothName, slotState in pairs(PlayerData[SelectPlayer].ClothesRecolor) do
+				if Clothes[clothName] and Clothes[clothName].Weld then
+					System.RecolorButtons[clothName] = {}
+					local seenSlots = {}
+					for _, partName in pairs(Clothes[clothName].Weld) do
+						local partMeta = PartList[partName]
+						if partMeta and partMeta.Recolor and not seenSlots[partMeta.Recolor] then
+							seenSlots[partMeta.Recolor] = true
+							local slot = partMeta.Recolor
+							if slotState[slot] == nil then
+								slotState[slot] = "nil"
+							end
+
+							local button = Function.ButtonCreate(clothName, GUIObject.RecolorListFrame, true, {Color = partMeta.Color.Color, Text = clothName.." "..slot.."Color"})
+							local aspect = button:FindFirstChildOfClass("UIAspectRatioConstraint")
+							if aspect then aspect:Destroy() end
+							local tb = button:FindFirstChildOfClass("TextBox")
+
+							local currentValue = slotState[slot]
+							if typeof(currentValue) == "Color3" then
+								tb.TextColor3 = currentValue
+								tb.Text = math.round(currentValue.R * 255)..","..math.round(currentValue.G * 255)..","..math.round(currentValue.B * 255)
+							else
+								tb.TextColor3 = partMeta.Color.Color
+								tb.Text = ""
+							end
+
+							local conn = tb.FocusLost:Connect(function()
+								if tb.Text ~= "" then
+									local RGB = Function.StringTo(tb.Text, "RGB")
+									tb.TextColor3 = RGB
+									PlayerData[SelectPlayer].ClothesRecolor[clothName][slot] = RGB
+								else
+									PlayerData[SelectPlayer].ClothesRecolor[clothName][slot] = "nil"
+									tb.TextColor3 = partMeta.Color.Color
+								end
+							end)
+							table.insert(System.RecolorButtons[clothName], conn)
+							table.insert(AllConnect, conn)
+						end
+					end
+				end
+			end
+		end
+
+		local function checkBundle(v, RequestID)
+			if RequestID and RequestID ~= PlayerData[SelectPlayer].LastRequestID then return end
 
 			if v.ClearClothing and v.ClearClothing == true then
-
 				PlayerData[SelectPlayer].CurrentClothes = {}
-
 			end
 
 			if v.Preset then
-
 				if v.Preset["CatalogUsername"] or v.Preset["CatalogAccessory"] then
-
 					if GUIObject.Catalog_3:FindFirstChild(SelectPlayer) then
 						for i, v in pairs(GUIObject.Catalog_3:FindFirstChild(SelectPlayer):GetChildren()) do
 							if not v:IsA("UIGridLayout") and not table.find(PlayerData[SelectPlayer].CatalogAccessory,tonumber(v.Name)) then
@@ -19774,7 +20325,6 @@ function RoClothes(Player)
 							end
 						end
 					end
-
 				end
 
 				for setting, value in pairs(v.Preset) do
@@ -19784,11 +20334,15 @@ function RoClothes(Player)
 						and setting ~= "includedAccessoryNames" 
 						and setting ~= "excludeAccessoryNames" then
 						if setting == "CurrentBundle" then
-							if (not Bundle[value].ClothingBundle or Bundle[value].ClothingBundle == false) and 
-								(not Bundle[value].IsPreset or Bundle[value].IsPreset == false) then
-								PlayerData[SelectPlayer][setting] = value
+							if Bundle[value] then
+								if (not Bundle[value].ClothingBundle or Bundle[value].ClothingBundle == false) and
+									(not Bundle[value].IsPreset or Bundle[value].IsPreset == false) then
+									PlayerData[SelectPlayer][setting] = value
+								end
+								checkBundle(Bundle[value], RequestID)
+							else
+								warn('[RoClothes] Preset.CurrentBundle references nonexistent bundle "'..tostring(value)..'" — ignored.')
 							end
-							checkBundle(Bundle[value])
 						elseif setting == "CatalogUsername" then
 							PlayerData[SelectPlayer][setting] = value
 
@@ -19813,6 +20367,7 @@ function RoClothes(Player)
 
 													Button:Destroy()
 													AccessoryRemoveButtonConnect:Disconnect()
+													hotSwap()
 												end)
 
 												table.insert(AllConnect, AccessoryRemoveButtonConnect)
@@ -19839,6 +20394,7 @@ function RoClothes(Player)
 
 									Button:Destroy()
 									AccessoryButtonConnect:Disconnect()
+									hotSwap()
 								end)
 
 								table.insert(AllConnect, AccessoryButtonConnect)
@@ -19858,6 +20414,7 @@ function RoClothes(Player)
 
 									Button:Destroy()
 									AccessoryButtonConnect:Disconnect()
+									hotSwap()
 								end)
 
 								table.insert(AllConnect, AccessoryButtonConnect)
@@ -19894,7 +20451,7 @@ function RoClothes(Player)
 						warn(v.. " does not exist. Update your bundle!")
 						continue
 					end
-					
+
 					if Clothes[v].Blacklist then
 						for i, b in pairs(Clothes[v].Blacklist) do
 							if table.find(PlayerData[SelectPlayer].CurrentClothes, b) then
@@ -19922,92 +20479,24 @@ function RoClothes(Player)
 						end
 					end
 
-					for i, c in pairs(Clothes[v].Weld) do -- CHANGE here
+					-- V4.3.54: just flag this cloth as needing a row set; renderRecolorList()
+					-- (called at end of checkBundle) builds the actual GUI rows from this state.
+					for _, c in pairs(Clothes[v].Weld or {}) do
 						if PartList[c] and PartList[c].Recolor then
 							if not PlayerData[SelectPlayer].ClothesRecolor[v] then
 								PlayerData[SelectPlayer].ClothesRecolor[v] = {}
-								RecolorButtons[v] = {}
 							end
-							if PartList[c].Recolor == "Primary" and not PlayerData[SelectPlayer].ClothesRecolor[v]["Primary"] then
-								PlayerData[SelectPlayer].ClothesRecolor[v]["Primary"] = "nil"
-								local button = Function.ButtonCreate(v, GUIObject.RecolorListFrame, true, {Color = PartList[c].Color.Color, Text = v.. " PrimaryColor"})
-								button:FindFirstChildOfClass("UIAspectRatioConstraint"):Destroy()
-
-								button:FindFirstChildOfClass("TextBox").TextColor3 = PartList[c].Color.Color
-								button:FindFirstChildOfClass("TextBox").Text = ""
-								local primaryChangeConnect = button:FindFirstChildOfClass("TextBox").FocusLost:Connect(function()
-									if button:FindFirstChildOfClass("TextBox").Text ~= "" then
-										local RGB = Function.StringTo(button:FindFirstChildOfClass("TextBox").Text, "RGB")
-
-										button:FindFirstChildOfClass("TextBox").TextColor3 = RGB
-										PlayerData[SelectPlayer].ClothesRecolor[v]["Primary"] = RGB
-									else
-										PlayerData[SelectPlayer].ClothesRecolor[v]["Primary"] = "nil"
-										button:FindFirstChildOfClass("TextBox").TextColor3 = PartList[c].Color.Color
-									end
-								end)
-								table.insert(RecolorButtons[v],primaryChangeConnect)
-								table.insert(AllConnect,primaryChangeConnect)
-							elseif PartList[c].Recolor == "Secondary" and not PlayerData[SelectPlayer].ClothesRecolor[v]["Secondary"] then
-								PlayerData[SelectPlayer].ClothesRecolor[v]["Secondary"] = "nil"
-								local button = Function.ButtonCreate(v, GUIObject.RecolorListFrame, true, {Color = PartList[c].Color.Color, Text = v.. " SecondaryColor"})
-								button:FindFirstChildOfClass("UIAspectRatioConstraint"):Destroy()
-
-								button:FindFirstChildOfClass("TextBox").TextColor3 = PartList[c].Color.Color
-								button:FindFirstChildOfClass("TextBox").Text = ""
-								local secondaryChangeConnect = button:FindFirstChildOfClass("TextBox").FocusLost:Connect(function()
-									if button:FindFirstChildOfClass("TextBox").Text ~= "" then
-										local RGB = Function.StringTo(button:FindFirstChildOfClass("TextBox").Text, "RGB")
-
-										button:FindFirstChildOfClass("TextBox").TextColor3 = RGB
-										PlayerData[SelectPlayer].ClothesRecolor[v]["Secondary"] = RGB
-									else
-										PlayerData[SelectPlayer].ClothesRecolor[v]["Secondary"] = "nil"
-										button:FindFirstChildOfClass("TextBox").TextColor3 = PartList[c].Color.Color
-									end
-								end)
-								table.insert(RecolorButtons[v],secondaryChangeConnect)
-								table.insert(AllConnect,secondaryChangeConnect)
-							elseif PartList[c].Recolor == "Tertiary" and not PlayerData[SelectPlayer].ClothesRecolor[v]["Tertiary"] then
-								PlayerData[SelectPlayer].ClothesRecolor[v]["Tertiary"] = "nil"
-								local button = Function.ButtonCreate(v, GUIObject.RecolorListFrame, true, {Color = PartList[c].Color.Color, Text = v.. " TertiaryColor"})
-								button:FindFirstChildOfClass("UIAspectRatioConstraint"):Destroy()
-
-								button:FindFirstChildOfClass("TextBox").TextColor3 = PartList[c].Color.Color
-								button:FindFirstChildOfClass("TextBox").Text = ""
-								local tertiaryChangeConnect = button:FindFirstChildOfClass("TextBox").FocusLost:Connect(function()
-									if button:FindFirstChildOfClass("TextBox").Text ~= "" then
-										local RGB = Function.StringTo(button:FindFirstChildOfClass("TextBox").Text, "RGB")
-
-										button:FindFirstChildOfClass("TextBox").TextColor3 = RGB
-										PlayerData[SelectPlayer].ClothesRecolor[v]["Tertiary"] = RGB
-									else
-										PlayerData[SelectPlayer].ClothesRecolor[v]["Tertiary"] = "nil"
-										button:FindFirstChildOfClass("TextBox").TextColor3 = PartList[c].Color.Color
-									end
-								end)
-								table.insert(RecolorButtons[v],tertiaryChangeConnect)
-								table.insert(AllConnect,tertiaryChangeConnect)
-							end
+							break
 						end
 					end
 				end
 			end
 
 			if v.Recolor then
-				for i, v in pairs(v.Recolor) do
-					PlayerData[SelectPlayer].ClothesRecolor[i] = v
-					for color, rgb in pairs(v) do
-						for z, button in pairs(GUIObject.RecolorListFrame:GetChildren()) do
-							if button.Name == i then
-								if button:FindFirstChildOfClass("TextBox").PlaceholderText == i.." "..color.."Color" then
-									local Split = string.split(tostring(rgb), ",")
-									button:FindFirstChildOfClass("TextBox").TextColor3 = rgb
-									button:FindFirstChildOfClass("TextBox").Text = math.round(Split[1]*255)..","..math.round(Split[2]*255)..","..math.round(Split[3]*255)
-								end
-							end
-						end
-					end
+				-- V4.3.54: bundle's per-cloth color overrides become state writes only;
+				-- renderRecolorList() at end of checkBundle reflects this into the GUI.
+				for cloth, colors in pairs(v.Recolor) do
+					PlayerData[SelectPlayer].ClothesRecolor[cloth] = colors
 				end
 			end
 
@@ -20032,18 +20521,19 @@ function RoClothes(Player)
 				end
 			end
 
+			renderRecolorList()
 		end
 
 		for i, v in pairs(Bundle) do
 			local BButton = Function.ButtonCreate(i, GUIObject.BundlesButtonFrame)
 			if v.ClothingBundle and v.ClothingBundle == true then
-				BButton.BackgroundColor3 = Color3.fromRGB(90, 38, 0)
+				BButton.BackgroundColor3 = Color3.fromRGB(38, 22, 10)
 			elseif v.IsPreset == true then
-				BButton.BackgroundColor3 = Color3.fromRGB(25, 84, 0)
+				BButton.BackgroundColor3 = Color3.fromRGB(12, 35, 20)
 			end
 
 			if i ~= "nil" and i ~= "Bald" then
-				table.insert(BundleButtons, BButton)
+				table.insert(System.BundleButtons, BButton)
 			else
 				if i == "nil" then
 					BButton.LayoutOrder = -999999999
@@ -20054,25 +20544,118 @@ function RoClothes(Player)
 
 			local BBConnect = BButton:FindFirstChildOfClass("TextButton").MouseButton1Click:Connect(function()
 				if DetectingBundle == false then
-					if BButton.Name == "nil" and PlayerData[SelectPlayer].CurrentBundle == "nil" then
-						Function.CharacterReset(SelectPlayer)
-						PlayerData[SelectPlayer] = Function.PlayerDataDefault()
-						for i, v in pairs(GUIObject.RecolorListFrame:GetChildren()) do
-							if v:IsA("Frame") then
-								v:Destroy()
+					local isClothingBundle = v.ClothingBundle and v.ClothingBundle == true
+					local isPreset = v.IsPreset and v.IsPreset == true
+					local isRegular = not isClothingBundle and not isPreset
+
+					-- Toggle: if clicking the already-active bundle, deselect it
+					if isRegular and PlayerData[SelectPlayer].CurrentBundle == BButton.Name then
+						PlayerData[SelectPlayer].CurrentBundle = "nil"
+						PlayerData[SelectPlayer].CurrentClothes = {}
+						-- Reset body types that bundles/presets can override
+						PlayerData[SelectPlayer].BreastsType = 1
+						PlayerData[SelectPlayer].TorsoType = 1
+						PlayerData[SelectPlayer].ArmType = 1
+						PlayerData[SelectPlayer].LegsType = 1
+						PlayerData[SelectPlayer].ButtType = 1
+						hotSwap()
+						Function.GUIUpdate()
+						return
+					elseif isClothingBundle and table.find(PlayerData[SelectPlayer].CurrentClothingBundles, BButton.Name) then
+						-- Remove this clothing bundle's clothes from CurrentClothes
+						if v.Clothing then
+							for _, clothName in pairs(v.Clothing) do
+								local idx = table.find(PlayerData[SelectPlayer].CurrentClothes, clothName)
+								if idx then table.remove(PlayerData[SelectPlayer].CurrentClothes, idx) end
 							end
 						end
-
-						task.delay(0,function()
-							BButton:FindFirstChildOfClass("TextButton").Text = "CLEARED"
-						end)
+						table.remove(PlayerData[SelectPlayer].CurrentClothingBundles, table.find(PlayerData[SelectPlayer].CurrentClothingBundles, BButton.Name))
+						hotSwap()
+						Function.GUIUpdate()
+						return
+					elseif isPreset and PlayerData[SelectPlayer].CurrentPreset == BButton.Name then
+						PlayerData[SelectPlayer].CurrentBundle = "nil"
+						PlayerData[SelectPlayer].CurrentClothes = {}
+						PlayerData[SelectPlayer].CurrentPreset = nil
+						PlayerData[SelectPlayer].CurrentClothingBundles = {}
+						-- Reset body types that presets can override
+						PlayerData[SelectPlayer].BreastsType = 1
+						PlayerData[SelectPlayer].TorsoType = 1
+						PlayerData[SelectPlayer].ArmType = 1
+						PlayerData[SelectPlayer].LegsType = 1
+						PlayerData[SelectPlayer].ButtType = 1
+						-- Reset scales and physics
+						PlayerData[SelectPlayer].BreastsScale = 1
+						PlayerData[SelectPlayer].ButtsScale = 1
+						PlayerData[SelectPlayer].LegsScale = 1
+						PlayerData[SelectPlayer].CockScale = 1
+						PlayerData[SelectPlayer].BodyPartPhysics = false
+						hotSwap()
+						Function.GUIUpdate()
+						return
 					end
 
-					if (not v.ClothingBundle or v.ClothingBundle == false) and (not v.IsPreset or v.IsPreset == false) then
+					Function.CharacterReset(SelectPlayer)
+
+					-- Reset scales and physics to defaults before new preset
+					PlayerData[SelectPlayer].BreastsScale = 1
+					PlayerData[SelectPlayer].ButtsScale = 1
+					PlayerData[SelectPlayer].LegsScale = 1
+					PlayerData[SelectPlayer].CockScale = 1
+					PlayerData[SelectPlayer].BodyPartPhysics = false
+					-- V4.3.51: reset body types and Tone too — fixes Datax→Sportsy bleed where a preset
+					-- bundle's TorsoType/ArmType/LegsType/ButtType/BreastsType/Tone persisted into a
+					-- presetless bundle because checkBundle had nothing to overwrite them with.
+					PlayerData[SelectPlayer].BreastsType = 1
+					PlayerData[SelectPlayer].TorsoType = 1
+					PlayerData[SelectPlayer].ArmType = 1
+					PlayerData[SelectPlayer].LegsType = 1
+					PlayerData[SelectPlayer].ButtType = 1
+					PlayerData[SelectPlayer].Tone = "Base"
+
+					PlayerData[SelectPlayer].LastRequestID = PlayerData[SelectPlayer].LastRequestID + 1
+					local CurrentRequestID = PlayerData[SelectPlayer].LastRequestID
+
+					if BButton.Name == "nil" then
+						if PlayerData[SelectPlayer].CurrentBundle == "nil" then
+							PlayerData[SelectPlayer] = Function.PlayerDataDefault()
+							-- V4.3.54: renderRecolorList reconciles RecolorListFrame from the now-empty state.
+							renderRecolorList()
+
+							task.delay(0,function()
+								BButton:FindFirstChildOfClass("TextButton").Text = "CLEARED"
+							end)
+						end
+					end
+
+					if isRegular then
 						PlayerData[SelectPlayer].CurrentBundle = BButton.Name
+						PlayerData[SelectPlayer].CurrentPreset = nil
+						PlayerData[SelectPlayer].CurrentClothingBundles = {}
+						PlayerData[SelectPlayer].CurrentClothes = {}
+						-- V4.3.52: clear recolor state on regular-bundle switch so the previous bundle's
+						-- per-clothing colors don't bleed into the new bundle's clothing (e.g. Datax's green
+						-- Sock 2 was staying green on Sportsy because Sportsy has no Recolor block and
+						-- checkBundle only writes — never clears — ClothesRecolor entries).
+						-- ClothingBundle (add-on) intentionally skips this so layered recolors stay intact.
+						PlayerData[SelectPlayer].ClothesRecolor = {}
+					elseif isPreset then
+						PlayerData[SelectPlayer].CurrentPreset = BButton.Name
+						PlayerData[SelectPlayer].CurrentClothingBundles = {}
+					elseif isClothingBundle then
+						if not table.find(PlayerData[SelectPlayer].CurrentClothingBundles, BButton.Name) then
+							table.insert(PlayerData[SelectPlayer].CurrentClothingBundles, BButton.Name)
+						end
 					end
 
-					checkBundle(v)
+					checkBundle(v, CurrentRequestID)
+
+					local ep = PS:FindFirstChild(SelectPlayer)
+					if ep and ep.Character and CurrentRequestID == PlayerData[SelectPlayer].LastRequestID then
+						local ok, err = pcall(Function.CharacterExecute, ep.Character, ep.Name, nil, CurrentRequestID)
+						if not ok then warn("[RoClothes] Bundle hotSwap error:", err) end
+					end
+					Function.GUIUpdate()
 				elseif DetectingBundle == "loadup" then
 					DetectingBundle = false
 					GUIObject.Bundles.Visible = false
@@ -20086,9 +20669,9 @@ function RoClothes(Player)
 					DetectingBundle = false
 					GUIObject.Bundles.Visible = false
 					GUIObject.optionsFrame.Visible = true
-					
+
 					local exportString = toBundleFormat(v, BButton.Name)
-					
+
 					local successfulCopy = pcall(function()
 						if env.copy then
 							GUIObject.exportButton.Text = "Copied exported bundle!"
@@ -20115,20 +20698,17 @@ function RoClothes(Player)
 					GUIObject.Bundles.Visible = false
 					GUIObject.optionsFrame.Visible = true
 
-					local success = pcall(function()
+					-- Attempt to delete the file on disk (user-created bundles only)
+					pcall(function()
 						if env.delfile and env.isfile("RClothesLerp/Bundles/"..sanitize(BButton.Name)..".json") then
 							env.delfile("RClothesLerp/Bundles/"..sanitize(BButton.Name)..".json")
-						else
-							error("no")
 						end
 					end)
-					if not success then
-						GUIObject.delButton.Text = "CANNOT DELETE"
-					else
-						GUIObject.delButton.Text = BButton.Name.." Deleted"
-						BButton:Destroy()
-						Function.compileOvertime()
-					end
+					-- Always remove from in-memory Bundle table and destroy the button
+					Bundle[BButton.Name] = nil
+					GUIObject.delButton.Text = BButton.Name.." Deleted"
+					BButton:Destroy()
+					Function.compileOvertime()
 					task.delay(2,function()
 						GUIObject.delButton.Text = "Delete Bundle"
 					end)
@@ -20145,7 +20725,9 @@ function RoClothes(Player)
 			if (not v.ClothingBundle or v.ClothingBundle == false) and (not v.IsPreset or v.IsPreset == false) then
 				PlayerData[Player.Name].CurrentBundle = loadupBundle
 			end
-			checkBundle(Bundle[loadupBundle])
+			PlayerData[SelectPlayer].LastRequestID = PlayerData[SelectPlayer].LastRequestID + 1
+			local loadupRequestID = PlayerData[SelectPlayer].LastRequestID
+			checkBundle(Bundle[loadupBundle], loadupRequestID)
 		elseif loadupBundle ~= nil and loadupBundle ~= "" then
 			warn('No bundle named "'.. loadupBundle ..'" was found!')
 		end
@@ -20154,7 +20736,7 @@ function RoClothes(Player)
 			local CButton = Function.ButtonCreate(i, GUIObject.ClothesButtonFrame)
 
 			if i ~= "nil" then
-				table.insert(ClothesButtons, CButton)
+				table.insert(System.ClothesButtons, CButton)
 			end
 
 			local CBConnect = CButton:FindFirstChildOfClass("TextButton").MouseButton1Click:Connect(function()
@@ -20164,73 +20746,14 @@ function RoClothes(Player)
 
 					if Clothes[CButton.Name].Weld then
 
-						for i, v in pairs(Clothes[CButton.Name].Weld) do
+						-- V4.3.54: just flag the cloth as needing a row set; renderRecolorList()
+						-- (called below before hotSwap) builds the actual GUI rows from this state.
+						for _, v in pairs(Clothes[CButton.Name].Weld) do
 							if PartList[v] and PartList[v].Recolor then
 								if not PlayerData[SelectPlayer].ClothesRecolor[CButton.Name] then
 									PlayerData[SelectPlayer].ClothesRecolor[CButton.Name] = {}
-									RecolorButtons[CButton.Name] = {}
 								end
-								if PartList[v].Recolor == "Primary" and not PlayerData[SelectPlayer].ClothesRecolor[CButton.Name]["Primary"] then
-									PlayerData[SelectPlayer].ClothesRecolor[CButton.Name]["Primary"] = "nil"
-									local button = Function.ButtonCreate(CButton.Name, GUIObject.RecolorListFrame, true, {Color = PartList[v].Color.Color, Text = CButton.Name.. " PrimaryColor"})
-									button:FindFirstChildOfClass("UIAspectRatioConstraint"):Destroy()
-
-									button:FindFirstChildOfClass("TextBox").TextColor3 = PartList[v].Color.Color
-									button:FindFirstChildOfClass("TextBox").Text = ""
-									local primaryChangeConnect = button:FindFirstChildOfClass("TextBox").FocusLost:Connect(function()
-										if button:FindFirstChildOfClass("TextBox").Text ~= "" then
-											local RGB = Function.StringTo(button:FindFirstChildOfClass("TextBox").Text, "RGB")
-
-											button:FindFirstChildOfClass("TextBox").TextColor3 = RGB
-											PlayerData[SelectPlayer].ClothesRecolor[CButton.Name]["Primary"] = RGB
-										else
-											PlayerData[SelectPlayer].ClothesRecolor[CButton.Name]["Primary"] = "nil"
-											button:FindFirstChildOfClass("TextBox").TextColor3 = PartList[v].Color.Color
-										end
-									end)
-									table.insert(RecolorButtons[CButton.Name],primaryChangeConnect)
-									table.insert(AllConnect,primaryChangeConnect)
-								elseif PartList[v].Recolor == "Secondary" and not PlayerData[SelectPlayer].ClothesRecolor[CButton.Name]["Secondary"] then
-									PlayerData[SelectPlayer].ClothesRecolor[CButton.Name]["Secondary"] = "nil"
-									local button = Function.ButtonCreate(CButton.Name, GUIObject.RecolorListFrame, true, {Color = PartList[v].Color.Color, Text = CButton.Name.. " SecondaryColor"})
-									button:FindFirstChildOfClass("UIAspectRatioConstraint"):Destroy()
-
-									button:FindFirstChildOfClass("TextBox").TextColor3 = PartList[v].Color.Color
-									button:FindFirstChildOfClass("TextBox").Text = ""
-									local secondaryChangeConnect = button:FindFirstChildOfClass("TextBox").FocusLost:Connect(function()
-										if button:FindFirstChildOfClass("TextBox").Text ~= "" then
-											local RGB = Function.StringTo(button:FindFirstChildOfClass("TextBox").Text, "RGB")
-
-											button:FindFirstChildOfClass("TextBox").TextColor3 = RGB
-											PlayerData[SelectPlayer].ClothesRecolor[CButton.Name]["Secondary"] = RGB
-										else
-											PlayerData[SelectPlayer].ClothesRecolor[CButton.Name]["Secondary"] = "nil"
-											button:FindFirstChildOfClass("TextBox").TextColor3 = PartList[v].Color.Color
-										end
-									end)
-									table.insert(RecolorButtons[CButton.Name],secondaryChangeConnect)
-									table.insert(AllConnect,secondaryChangeConnect)
-								elseif PartList[v].Recolor == "Tertiary" and not PlayerData[SelectPlayer].ClothesRecolor[CButton.Name]["Tertiary"] then
-									PlayerData[SelectPlayer].ClothesRecolor[CButton.Name]["Tertiary"] = "nil"
-									local button = Function.ButtonCreate(CButton.Name, GUIObject.RecolorListFrame, true, {Color = PartList[v].Color.Color, Text = CButton.Name.. " TertiaryColor"})
-									button:FindFirstChildOfClass("UIAspectRatioConstraint"):Destroy()
-
-									button:FindFirstChildOfClass("TextBox").TextColor3 = PartList[v].Color.Color
-									button:FindFirstChildOfClass("TextBox").Text = ""
-									local tertiaryChangeConnect = button:FindFirstChildOfClass("TextBox").FocusLost:Connect(function()
-										if button:FindFirstChildOfClass("TextBox").Text ~= "" then
-											local RGB = Function.StringTo(button:FindFirstChildOfClass("TextBox").Text, "RGB")
-
-											button:FindFirstChildOfClass("TextBox").TextColor3 = RGB
-											PlayerData[SelectPlayer].ClothesRecolor[CButton.Name]["Tertiary"] = RGB
-										else
-											PlayerData[SelectPlayer].ClothesRecolor[CButton.Name]["Tertiary"] = "nil"
-											button:FindFirstChildOfClass("TextBox").TextColor3 = PartList[v].Color.Color
-										end
-									end)
-									table.insert(RecolorButtons[CButton.Name],tertiaryChangeConnect)
-									table.insert(AllConnect,tertiaryChangeConnect)
-								end
+								break
 							end
 						end
 
@@ -20265,37 +20788,31 @@ function RoClothes(Player)
 						if v == CButton.Name then
 							table.remove(PlayerData[SelectPlayer].CurrentClothes, i)
 
+							-- V4.3.54: state clear only; renderRecolorList() handles GUI teardown.
 							if PlayerData[SelectPlayer].ClothesRecolor[CButton.Name] then
 								PlayerData[SelectPlayer].ClothesRecolor[CButton.Name] = nil
-								for i, v in pairs(GUIObject.RecolorListFrame:GetChildren()) do
-									if v.Name == CButton.Name then
-										v:Destroy()
-									end
-								end
-								for i, v in pairs(RecolorButtons[CButton.Name]) do
-									table.remove(AllConnect,table.find(AllConnect,v))
-								end
-								RecolorButtons[CButton.Name] = nil
 							end
 
 						end
 					end
 				end
 
+				renderRecolorList()
+				hotSwap()
 				Function.GUIUpdate()
 			end)
 
-			table.insert(AllConnect, CBConnect)
+			System.GlobalMaid:Give(CBConnect)
 		end
 
-		table.sort(BundleButtons, function(a,b)
+		table.sort(System.BundleButtons, function(a,b)
 			return a.Name:lower() < b.Name:lower()
 		end)
-		table.sort(ClothesButtons, function(a,b)
+		table.sort(System.ClothesButtons, function(a,b)
 			return a.Name < b.Name
 		end)
 
-		for i, v in pairs(BundleButtons) do
+		for i, v in pairs(System.BundleButtons) do
 			local extraorder = 0
 			if Bundle[v.Name].ClothingBundle and Bundle[v.Name].ClothingBundle == true then
 				extraorder = -999
@@ -20304,7 +20821,7 @@ function RoClothes(Player)
 			end
 			v.LayoutOrder = i+extraorder
 		end
-		for i, v in pairs(ClothesButtons) do
+		for i, v in pairs(System.ClothesButtons) do
 			v.LayoutOrder = i
 		end
 
@@ -20312,21 +20829,38 @@ function RoClothes(Player)
 			if Button:IsA("ImageButton") and PlayerData[SelectPlayer].LocalTransparency[Button.Name] ~= nil then
 				local LocalTransparencyConnect = Button.MouseButton1Click:Connect(function()
 					PlayerData[SelectPlayer].LocalTransparency[Button.Name] = not PlayerData[SelectPlayer].LocalTransparency[Button.Name]
-
-					Function.GUIUpdate()
+					hotSwap()
 				end)
 
-				table.insert(AllConnect, LocalTransparencyConnect)
+				System.GlobalMaid:Give(LocalTransparencyConnect)
 			end
 		end
 
-		local ClothesSearchConnect = GUIObject.ClothesSearch:GetPropertyChangedSignal("Text"):Connect(function()
-			Function.GUIUpdate()
-		end)
+		do
+			local clothesSearchTick = 0
+			local ClothesSearchConnect = GUIObject.ClothesSearch:GetPropertyChangedSignal("Text"):Connect(function()
+				local current = tick()
+				clothesSearchTick = current
+				task.delay(0.3, function()
+					if clothesSearchTick == current then
+						Function.GUIUpdate()
+					end
+				end)
+			end)
+			System.GlobalMaid:Give(ClothesSearchConnect)
 
-		local BundleSearchConnect = GUIObject.BundleSearch:GetPropertyChangedSignal("Text"):Connect(function()
-			Function.GUIUpdate()
-		end)
+			local bundleSearchTick = 0
+			local BundleSearchConnect = GUIObject.BundleSearch:GetPropertyChangedSignal("Text"):Connect(function()
+				local current = tick()
+				bundleSearchTick = current
+				task.delay(0.3, function()
+					if bundleSearchTick == current then
+						Function.GUIUpdate()
+					end
+				end)
+			end)
+			System.GlobalMaid:Give(BundleSearchConnect)
+		end
 
 		local FirstPersonConnect = GUIObject.FPExecute.MouseButton1Click:Connect(function()
 			PlayerData[SelectPlayer].FPerson = not PlayerData[SelectPlayer].FPerson
@@ -20547,6 +21081,10 @@ function RoClothes(Player)
 					KEYBIND = KEYBIND,
 					hpKEYBIND = hpKEYBIND,
 					dpKEYBIND = dpKEYBIND,
+					loadupBreastsStiffness = PlayerData[SelectPlayer].BreastsStiffness,
+					loadupBreastsDamping = PlayerData[SelectPlayer].BreastsDamping,
+					loadupButtsStiffness = PlayerData[SelectPlayer].ButtsStiffness,
+					loadupButtsDamping = PlayerData[SelectPlayer].ButtsDamping,
 				}
 				local mobileButtons = {
 					HealPos = GUIObject.ImageHeal.Position,
@@ -20589,12 +21127,12 @@ function RoClothes(Player)
 			if Text ~= "" then
 				if debounce == false then
 					debounce = true
-					local success, ouput = pcall(function()
+					local success, output = pcall(function()
 						return loadstring(Text)()
 					end)
 					if not success then
 						local reFormat = "local import = {".. Text .."} return import"
-						success, ouput = pcall(function()
+						success, output = pcall(function()
 							return loadstring(reFormat)()
 						end)
 					end
@@ -20605,10 +21143,10 @@ function RoClothes(Player)
 							end
 							return str
 						end
-						
+
 						local allBundlesSuccess = true
-						local s, ouput = pcall(function()
-							for name, input in pairs(ouput) do
+						local s, output = pcall(function()
+							for name, input in pairs(output) do
 								-- error checker --
 								local invalidBundle = false
 								local function bWarn(reason)
@@ -20669,7 +21207,7 @@ function RoClothes(Player)
 
 								if invalidBundle == true then
 									allBundlesSuccess = false
-									warn("⚠️ Bundle "..name.." has been aborted! ⚠️")
+									warn(" Bundle "..name.." has been aborted! ")
 									continue
 								end
 								Bundle[name] = input
@@ -20678,20 +21216,111 @@ function RoClothes(Player)
 									GUIObject.BundlesButtonFrame:FindFirstChild(name):Destroy()
 								end
 								local BButton = Function.ButtonCreate(name, GUIObject.BundlesButtonFrame)
+								-- V4.3.0 fix: match normal bundle-loop tinting approach. The old code
+								-- called BButton:FindFirstChildOfClass("UIGradient").Color but ButtonCreate
+								-- does NOT create a UIGradient, so that call indexed nil and errored inside
+								-- the pcall. Any ClothingBundle/IsPreset import would silently lose its
+								-- BBConnect attachment — button visible, button click does nothing.
 								if input.ClothingBundle and input.ClothingBundle == true then
-									BButton.BackgroundColor3 = Color3.fromRGB(90, 38, 0)
+									BButton.BackgroundColor3 = Color3.fromRGB(38, 22, 10)
 								elseif input.IsPreset == true then
-									BButton.BackgroundColor3 = Color3.fromRGB(25, 84, 0)
+									BButton.BackgroundColor3 = Color3.fromRGB(12, 35, 20)
 								end
-								table.insert(BundleButtons, BButton)
+								table.insert(System.BundleButtons, BButton)
 								local BBConnect = BButton:FindFirstChildOfClass("TextButton").MouseButton1Click:Connect(function()
 									if DetectingBundle == false then
-										if (not input.ClothingBundle or input.ClothingBundle == false) and (not input.IsPreset or input.IsPreset == false) then
-											PlayerData[SelectPlayer].CurrentBundle = BButton.Name
+										local isClothingBundle = input.ClothingBundle and input.ClothingBundle == true
+										local isPreset = input.IsPreset and input.IsPreset == true
+										local isRegular = not isClothingBundle and not isPreset
+
+										-- Toggle: if clicking the already-active bundle, deselect it
+										if isRegular and PlayerData[SelectPlayer].CurrentBundle == BButton.Name then
+											PlayerData[SelectPlayer].CurrentBundle = "nil"
+											PlayerData[SelectPlayer].CurrentClothes = {}
+											PlayerData[SelectPlayer].BreastsType = 1
+											PlayerData[SelectPlayer].TorsoType = 1
+											PlayerData[SelectPlayer].ArmType = 1
+											PlayerData[SelectPlayer].LegsType = 1
+											PlayerData[SelectPlayer].ButtType = 1
+											hotSwap()
+											Function.GUIUpdate()
+											return
+										elseif isClothingBundle and table.find(PlayerData[SelectPlayer].CurrentClothingBundles, BButton.Name) then
+											if input.Clothing then
+												for _, clothName in pairs(input.Clothing) do
+													local idx = table.find(PlayerData[SelectPlayer].CurrentClothes, clothName)
+													if idx then table.remove(PlayerData[SelectPlayer].CurrentClothes, idx) end
+												end
+											end
+											table.remove(PlayerData[SelectPlayer].CurrentClothingBundles, table.find(PlayerData[SelectPlayer].CurrentClothingBundles, BButton.Name))
+											hotSwap()
+											Function.GUIUpdate()
+											return
+										elseif isPreset and PlayerData[SelectPlayer].CurrentPreset == BButton.Name then
+											PlayerData[SelectPlayer].CurrentBundle = "nil"
+											PlayerData[SelectPlayer].CurrentClothes = {}
+											PlayerData[SelectPlayer].CurrentPreset = nil
+											PlayerData[SelectPlayer].CurrentClothingBundles = {}
+											PlayerData[SelectPlayer].BreastsType = 1
+											PlayerData[SelectPlayer].TorsoType = 1
+											PlayerData[SelectPlayer].ArmType = 1
+											PlayerData[SelectPlayer].LegsType = 1
+											PlayerData[SelectPlayer].ButtType = 1
+											-- Reset scales and physics
+											PlayerData[SelectPlayer].BreastsScale = 1
+											PlayerData[SelectPlayer].ButtsScale = 1
+											PlayerData[SelectPlayer].LegsScale = 1
+											PlayerData[SelectPlayer].CockScale = 1
+											PlayerData[SelectPlayer].BodyPartPhysics = false
+											hotSwap()
+											Function.GUIUpdate()
+											return
 										end
 
-										checkBundle(input)
+															Function.CharacterReset(SelectPlayer)
 
+										-- Reset scales and physics to defaults before new preset
+										PlayerData[SelectPlayer].BreastsScale = 1
+										PlayerData[SelectPlayer].ButtsScale = 1
+										PlayerData[SelectPlayer].LegsScale = 1
+										PlayerData[SelectPlayer].CockScale = 1
+										PlayerData[SelectPlayer].BodyPartPhysics = false
+										-- V4.3.51: reset body types and Tone too — fixes Datax→Sportsy bleed where a preset
+										-- bundle's TorsoType/ArmType/LegsType/ButtType/BreastsType/Tone persisted into a
+										-- presetless bundle because checkBundle had nothing to overwrite them with.
+										PlayerData[SelectPlayer].BreastsType = 1
+										PlayerData[SelectPlayer].TorsoType = 1
+										PlayerData[SelectPlayer].ArmType = 1
+										PlayerData[SelectPlayer].LegsType = 1
+										PlayerData[SelectPlayer].ButtType = 1
+										PlayerData[SelectPlayer].Tone = "Base"
+
+										PlayerData[SelectPlayer].LastRequestID = PlayerData[SelectPlayer].LastRequestID + 1
+										local CurrentRequestID = PlayerData[SelectPlayer].LastRequestID
+
+										if isRegular then
+											PlayerData[SelectPlayer].CurrentBundle = BButton.Name
+											PlayerData[SelectPlayer].CurrentPreset = nil
+											PlayerData[SelectPlayer].CurrentClothingBundles = {}
+											PlayerData[SelectPlayer].CurrentClothes = {}
+											-- V4.3.52: clear recolor state on regular-bundle switch — see regular-handler comment.
+											PlayerData[SelectPlayer].ClothesRecolor = {}
+										elseif isPreset then
+											PlayerData[SelectPlayer].CurrentPreset = BButton.Name
+											PlayerData[SelectPlayer].CurrentClothingBundles = {}
+										elseif isClothingBundle then
+											if not table.find(PlayerData[SelectPlayer].CurrentClothingBundles, BButton.Name) then
+												table.insert(PlayerData[SelectPlayer].CurrentClothingBundles, BButton.Name)
+											end
+										end
+
+										checkBundle(input, CurrentRequestID)
+
+															local ep = PS:FindFirstChild(SelectPlayer)
+										if ep and ep.Character and CurrentRequestID == PlayerData[SelectPlayer].LastRequestID then
+											local ok, err = pcall(Function.CharacterExecute, ep.Character, ep.Name, nil, CurrentRequestID)
+											if not ok then warn("[RoClothes] Bundle hotSwap error:", err) end
+										end
 										Function.GUIUpdate()
 									elseif DetectingBundle == "loadup" then
 										DetectingBundle = false
@@ -20729,34 +21358,31 @@ function RoClothes(Player)
 										GUIObject.Bundles.Visible = false
 										GUIObject.optionsFrame.Visible = true
 
-										local success = pcall(function()
+										-- Attempt to delete the file on disk (user-created bundles only)
+										pcall(function()
 											if env.delfile and env.isfile("RClothesLerp/Bundles/"..sanitize(name)..".json") then
 												env.delfile("RClothesLerp/Bundles/"..sanitize(name)..".json")
-											else
-												error("no")
 											end
 										end)
-										if not success then
-											GUIObject.delButton.Text = "CANNOT DELETE"
-										else
-											GUIObject.delButton.Text = name.." Deleted"
-											BButton:Destroy()
-											Function.compileOvertime()
-										end
+										-- Always remove from in-memory Bundle table and destroy the button
+										Bundle[name] = nil
+										GUIObject.delButton.Text = name.." Deleted"
+										BButton:Destroy()
+										Function.compileOvertime()
 										task.delay(2,function()
 											GUIObject.delButton.Text = "Delete Bundle"
 										end)
 									end
 
 								end)
-								table.insert(AllConnect, BBConnect)
-								table.sort(BundleButtons, function(a,b)
+								System.GlobalMaid:Give(BBConnect)
+								table.sort(System.BundleButtons, function(a,b)
 									return a.Name:lower() < b.Name:lower()
 								end)
-								table.sort(ClothesButtons, function(a,b)
+								table.sort(System.ClothesButtons, function(a,b)
 									return a.Name < b.Name
 								end)
-								for i, v in pairs(BundleButtons) do
+								for i, v in pairs(System.BundleButtons) do
 									local extraorder = 0
 									if Bundle[v.Name].ClothingBundle and Bundle[v.Name].ClothingBundle == true then
 										extraorder = -999
@@ -20765,7 +21391,7 @@ function RoClothes(Player)
 									end
 									v.LayoutOrder = i+extraorder
 								end
-								for i, v in pairs(ClothesButtons) do
+								for i, v in pairs(System.ClothesButtons) do
 									v.LayoutOrder = i
 								end
 
@@ -20817,11 +21443,11 @@ function RoClothes(Player)
 								GUIObject.importBundleBox.Text = "Errors were found. Check Developer Console for list of errors."
 							end
 						else
-							GUIObject.importBundleBox.Text = ouput
+							GUIObject.importBundleBox.Text = output
 						end
 					else
-						GUIObject.importBundleBox.Text = ouput
-						warn(ouput)
+						GUIObject.importBundleBox.Text = output
+						warn(output)
 					end
 					task.wait(1)
 					debounce = false
@@ -20831,130 +21457,82 @@ function RoClothes(Player)
 			end
 		end)
 
-		table.insert(AllConnect, ExecuteConnect)
-		table.insert(AllConnect, ResetConnect)
-		table.insert(AllConnect, DelayTimeConnect)
-		table.insert(AllConnect, DestroyConnect)
-		table.insert(AllConnect, BundleBodyColorConnect)
-		table.insert(AllConnect, MeshSizeLockConnect)
-		table.insert(AllConnect, AccessorySizeLockConnect)
-		table.insert(AllConnect, MeshBasePartInvisibleConnect)
-		table.insert(AllConnect, BodyPartPhysicsConnect)
-		table.insert(AllConnect, UsernameConnect)
-		table.insert(AllConnect, MethodConnect)
-		table.insert(AllConnect, MethodConnect2)
-		table.insert(AllConnect, KeybindConnect)
-		table.insert(AllConnect, ToneConnect)
-		table.insert(AllConnect, ShirtConnect)
-		table.insert(AllConnect, ShirtGraphicConnect)
-		table.insert(AllConnect, PantsConnect)
-		table.insert(AllConnect, AccessoryConnect)
-		table.insert(AllConnect, PositionPhysicsMultiplyConnect)
-		table.insert(AllConnect, RotationPhysicsMultiplyConnect)
-		table.insert(AllConnect, ClickExecuteConnect)
-		table.insert(AllConnect, MobileCloseConnect)
-		table.insert(AllConnect, SkinToneConnect)
-		table.insert(AllConnect, NippleColorConnect)
-		table.insert(AllConnect, BreastsTypeConnect)
-		table.insert(AllConnect, OutfitIdConnect)
-		--table.insert(AllConnect, BBCToggleConnect)
-		table.insert(AllConnect, ClothesSearchConnect)
-		table.insert(AllConnect, BundleSearchConnect)
-		table.insert(AllConnect, TorsoTypeConnect)
-		table.insert(AllConnect, LegsTypeConnect)
-		table.insert(AllConnect, FirstPersonConnect)
-		table.insert(AllConnect, ShirtHPConnect)
-		table.insert(AllConnect, PantsHPConnect)
-		table.insert(AllConnect, ShirtClothesConnect)
-		table.insert(AllConnect, PantsClothesConnect)
-		table.insert(AllConnect, DamageSFXConnect)
-		table.insert(AllConnect, VolumeSFXConnect)
-		table.insert(AllConnect, TearToggleConnect)
-		table.insert(AllConnect, HealToggleConnect)
-		table.insert(AllConnect, HardcoreToggleConnect)
-		table.insert(AllConnect, GravityConnect)
-		table.insert(AllConnect, TailPhysicsToggleConnect)
-		table.insert(AllConnect, loadupClosedConnect)
-		table.insert(AllConnect, loadupExecuteConnect)
-		table.insert(AllConnect, loadupFPersonConnect)
-		table.insert(AllConnect, loadupFPersonConnect2)
-		table.insert(AllConnect, loadupBundleConnect)
-		--table.insert(AllConnect, loadupBundleEnterConnect)
-		table.insert(AllConnect, saveConnect)
-		table.insert(AllConnect, importConnect)
-		table.insert(AllConnect, exportBundleConnect)
-		table.insert(AllConnect, delBundleConnect)
+		System.GlobalMaid:Give(ExecuteConnect)
+		System.GlobalMaid:Give(ResetConnect)
+		System.GlobalMaid:Give(DelayTimeConnect)
+		System.GlobalMaid:Give(DestroyConnect)
+		System.GlobalMaid:Give(BundleBodyColorConnect)
+		System.GlobalMaid:Give(MeshSizeLockConnect)
+		System.GlobalMaid:Give(AccessorySizeLockConnect)
+		System.GlobalMaid:Give(MeshBasePartInvisibleConnect)
+		System.GlobalMaid:Give(BodyPartPhysicsConnect)
+		System.GlobalMaid:Give(UsernameConnect)
+		System.GlobalMaid:Give(MethodConnect)
+		System.GlobalMaid:Give(MethodConnect2)
+		System.GlobalMaid:Give(KeybindConnect)
+		System.GlobalMaid:Give(ToneConnect)
+		System.GlobalMaid:Give(ShirtConnect)
+		System.GlobalMaid:Give(ShirtGraphicConnect)
+		System.GlobalMaid:Give(PantsConnect)
+		System.GlobalMaid:Give(AccessoryConnect)
+		System.GlobalMaid:Give(PositionPhysicsMultiplyConnect)
+		System.GlobalMaid:Give(RotationPhysicsMultiplyConnect)
+		System.GlobalMaid:Give(ClickExecuteConnect)
+		System.GlobalMaid:Give(MobileCloseConnect)
+		System.GlobalMaid:Give(SkinToneConnect)
+		System.GlobalMaid:Give(NippleColorConnect)
+		System.GlobalMaid:Give(BreastsTypeConnect)
+		System.GlobalMaid:Give(OutfitIdConnect)
+		--System.GlobalMaid:Give(BBCToggleConnect)
+		System.GlobalMaid:Give(TorsoTypeConnect)
+		System.GlobalMaid:Give(LegsTypeConnect)
+		System.GlobalMaid:Give(FirstPersonConnect)
+		System.GlobalMaid:Give(ShirtHPConnect)
+		System.GlobalMaid:Give(PantsHPConnect)
+		System.GlobalMaid:Give(ShirtClothesConnect)
+		System.GlobalMaid:Give(PantsClothesConnect)
+		System.GlobalMaid:Give(DamageSFXConnect)
+		System.GlobalMaid:Give(VolumeSFXConnect)
+		System.GlobalMaid:Give(TearToggleConnect)
+		System.GlobalMaid:Give(HealToggleConnect)
+		System.GlobalMaid:Give(HardcoreToggleConnect)
+		System.GlobalMaid:Give(GravityConnect)
+		System.GlobalMaid:Give(TailPhysicsToggleConnect)
+		System.GlobalMaid:Give(loadupClosedConnect)
+		System.GlobalMaid:Give(loadupExecuteConnect)
+		System.GlobalMaid:Give(loadupFPersonConnect)
+		System.GlobalMaid:Give(loadupFPersonConnect2)
+		System.GlobalMaid:Give(loadupBundleConnect)
+		--System.GlobalMaid:Give(loadupBundleEnterConnect)
+		System.GlobalMaid:Give(saveConnect)
+		System.GlobalMaid:Give(importConnect)
+		System.GlobalMaid:Give(exportBundleConnect)
+		System.GlobalMaid:Give(delBundleConnect)
 	end
 
-	Function.UIStrokeCreate(GUIObject.PageFrame)
-	Function.UIStrokeCreate(GUIObject.ToneFrame)
-	Function.UIStrokeCreate(GUIObject.ResetFrame)
-	Function.UIStrokeCreate(GUIObject.DelayFrame)
-	Function.UIStrokeCreate(GUIObject.BundleFrame)
-	Function.UIStrokeCreate(GUIObject.DestroyFrame)
-	Function.UIStrokeCreate(GUIObject.PlayerFrame)
-	Function.UIStrokeCreate(GUIObject.BreastsTypeFrame)
-	Function.UIStrokeCreate(GUIObject.TorsoTypeFrame)
-	Function.UIStrokeCreate(GUIObject.ArmTypeFrame)
-	Function.UIStrokeCreate(GUIObject.LegsTypeFrame)
-	Function.UIStrokeCreate(GUIObject.ButtTypeFrame)
-	Function.UIStrokeCreate(GUIObject.AutoExecuteFrame)
-	Function.UIStrokeCreate(GUIObject.BundleBodyColorFrame)
-	Function.UIStrokeCreate(GUIObject.ExecuteFrame)
-	Function.UIStrokeCreate(GUIObject.KeybindFrame)
-	Function.UIStrokeCreate(GUIObject.FaceFrame)
-	Function.UIStrokeCreate(GUIObject.Bundles_2)
-	Function.UIStrokeCreate(GUIObject.Clothes_2)
-	Function.UIStrokeCreate(GUIObject.Menu_2)
-	Function.UIStrokeCreate(GUIObject.Menu2_2)
-	Function.UIStrokeCreate(GUIObject.LocalTransparencyFrame)
-	Function.UIStrokeCreate(GUIObject.MeshSizeLockFrame)
-	Function.UIStrokeCreate(GUIObject.AccessorySizeLockFrame)
-	Function.UIStrokeCreate(GUIObject.MeshBasePartInvisibleFrame)
-	Function.UIStrokeCreate(GUIObject.BodyPartPhysicsFrame)
-	Function.UIStrokeCreate(GUIObject.MethodFrame)
-	Function.UIStrokeCreate(GUIObject.Catalog_2)
-	Function.UIStrokeCreate(GUIObject.Edit_2)
-	Function.UIStrokeCreate(GUIObject.HP)
-	Function.UIStrokeCreate(GUIObject.FPFrame)
-	Function.UIStrokeCreate(GUIObject.MeshNameFrame)
-	Function.UIStrokeCreate(GUIObject.ShirtFrame)
-	Function.UIStrokeCreate(GUIObject.ShirtGraphicFrame)
-	Function.UIStrokeCreate(GUIObject.PantsFrame)
-	Function.UIStrokeCreate(GUIObject.AccessoryFrame)
-	Function.UIStrokeCreate(GUIObject.UsernameFrame)
-	Function.UIStrokeCreate(GUIObject.ClickExecuteFrame)
-	Function.UIStrokeCreate(GUIObject.PositionPhysicsMultiplyFrame)
-	Function.UIStrokeCreate(GUIObject.RotationPhysicsMultiplyFrame)
-	Function.UIStrokeCreate(GUIObject.SkinToneFrame)
-	Function.UIStrokeCreate(GUIObject.NippleColorFrame)
-	Function.UIStrokeCreate(GUIObject.Menu3_3)
-	Function.UIStrokeCreate(GUIObject.BreastsScaleFrame)
-	Function.UIStrokeCreate(GUIObject.ButtsScaleFrame)
-	Function.UIStrokeCreate(GUIObject.LegsScaleFrame)
-	Function.UIStrokeCreate(GUIObject.OutfitIdFrame)
-	Function.UIStrokeCreate(GUIObject.TopHPFrame)
-	Function.UIStrokeCreate(GUIObject.TopClothesFrame)
-	Function.UIStrokeCreate(GUIObject.BottomHPFrame)
-	Function.UIStrokeCreate(GUIObject.BottomClothesFrame)
-	Function.UIStrokeCreate(GUIObject.DamageFrame)
-	Function.UIStrokeCreate(GUIObject.VolumeFrame)
-	Function.UIStrokeCreate(GUIObject.TPFrame)
-	Function.UIStrokeCreate(GUIObject.PHFrame)
-	Function.UIStrokeCreate(GUIObject.Recolor)
-	Function.UIStrokeCreate(GUIObject.GravityFrame)
-	Function.UIStrokeCreate(GUIObject.BodyTransparencyFrame)
-	Function.UIStrokeCreate(GUIObject.HardcoreFrame)
-	Function.UIStrokeCreate(GUIObject.tailToggleFrame)
-	Function.UIStrokeCreate(GUIObject.optionsframeButton)
-	Function.UIStrokeCreate(GUIObject.saveFrame)
-	Function.UIStrokeCreate(GUIObject.closeOption)
-	Function.UIStrokeCreate(GUIObject.executeOption)
-	Function.UIStrokeCreate(GUIObject.bundleLoad)
-	Function.UIStrokeCreate(GUIObject.FPersonLoadup)
-	Function.UIStrokeCreate(GUIObject.importBundle)
-	Function.UIStrokeCreate(GUIObject.exportBox)
-	Function.UIStrokeCreate(GUIObject.delFrame)
+	do
+		local StrokeList = {
+			GUIObject.PageFrame, GUIObject.ToneFrame, GUIObject.ResetFrame, GUIObject.DelayFrame, GUIObject.BundleFrame,
+			GUIObject.DestroyFrame, GUIObject.PlayerFrame, GUIObject.BreastsTypeFrame, GUIObject.TorsoTypeFrame,
+			GUIObject.ArmTypeFrame, GUIObject.LegsTypeFrame, GUIObject.ButtTypeFrame, GUIObject.AutoExecuteFrame,
+			GUIObject.BundleBodyColorFrame, GUIObject.ExecuteFrame, GUIObject.KeybindFrame, GUIObject.FaceFrame,
+			GUIObject.Bundles_2, GUIObject.Clothes_2, GUIObject.Menu_2, GUIObject.Menu2_2, GUIObject.LocalTransparencyFrame,
+			GUIObject.MeshSizeLockFrame, GUIObject.AccessorySizeLockFrame, GUIObject.MeshBasePartInvisibleFrame,
+			GUIObject.BodyPartPhysicsFrame, GUIObject.MethodFrame, GUIObject.Catalog_2, GUIObject.Edit_2, GUIObject.HP,
+			GUIObject.FPFrame, GUIObject.MeshNameFrame, GUIObject.ShirtFrame, GUIObject.ShirtGraphicFrame, GUIObject.PantsFrame,
+			GUIObject.AccessoryFrame, GUIObject.UsernameFrame, GUIObject.ClickExecuteFrame, GUIObject.PositionPhysicsMultiplyFrame,
+			GUIObject.RotationPhysicsMultiplyFrame, GUIObject.SkinToneFrame, GUIObject.NippleColorFrame, GUIObject.Menu3_3,
+			GUIObject.BreastsScaleFrame, GUIObject.ButtsScaleFrame, GUIObject.LegsScaleFrame, GUIObject.OutfitIdFrame,
+			GUIObject.TopHPFrame, GUIObject.TopClothesFrame, GUIObject.BottomHPFrame, GUIObject.BottomClothesFrame,
+			GUIObject.DamageFrame, GUIObject.VolumeFrame, GUIObject.TPFrame, GUIObject.PHFrame, GUIObject.Recolor,
+			GUIObject.GravityFrame, GUIObject.BodyTransparencyFrame, GUIObject.HardcoreFrame, GUIObject.tailToggleFrame,
+			GUIObject.optionsframeButton, GUIObject.saveFrame, GUIObject.closeOption, GUIObject.executeOption,
+			GUIObject.bundleLoad, GUIObject.FPersonLoadup, GUIObject.importBundle, GUIObject.exportBox, GUIObject.delFrame
+		}
+		for _, v in ipairs(StrokeList) do
+			Function.UIStrokeCreate(v)
+		end
+	end
 
 	--Properties:
 
@@ -21011,7 +21589,7 @@ function RoClothes(Player)
 	GUIObject.PageFrame.Position = UDim2.new(0,0,0)
 	GUIObject.PageFrame.Size = UDim2.new(1,0,1,0)
 
-	GUIObject.UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 18, 32)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(16, 14, 26))}
 	GUIObject.UIGradient.Rotation = -90
 	GUIObject.UIGradient.Parent = GUIObject.PageFrame
 
@@ -21028,24 +21606,25 @@ function RoClothes(Player)
 	GUIObject.ClothesSearch.Name = "ClothesSearch"
 	GUIObject.ClothesSearch.Parent = GUIObject.Clothes_3
 	GUIObject.ClothesSearch.AnchorPoint = Vector2.new(0.5, 0)
-	GUIObject.ClothesSearch.BackgroundColor3 = Color3.fromRGB(6, 0, 76)
+	GUIObject.ClothesSearch.BackgroundColor3 = Color3.fromRGB(18, 16, 28)
 	GUIObject.ClothesSearch.BorderColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ClothesSearch.Position = UDim2.new(0.5, 0, 1.02, 0)
 	GUIObject.ClothesSearch.Size = UDim2.new(.9, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_34.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(48, 48, 48)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 255, 255))}
+	GUIObject.UIGradient_34.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(75, 62, 118)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(95, 80, 142))}
 	GUIObject.UIGradient_34.Rotation = -90
 	GUIObject.UIGradient_34.Parent = GUIObject.ClothesSearch
 
 	Function.UIStrokeCreate(GUIObject.ClothesSearch).ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-	GUIObject.UICorner_35.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_35.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_35.Parent = GUIObject.ClothesSearch
 
 	--GUIObject.ClothesSearch.ClearTextOnFocus = false
-	GUIObject.ClothesSearch.Font = Enum.Font.Code
+	GUIObject.ClothesSearch.Font = Enum.Font.GothamMedium
 	GUIObject.ClothesSearch.Text = ""
 	GUIObject.ClothesSearch.PlaceholderText = "Search Clothes"
+	GUIObject.ClothesSearch.PlaceholderColor3 = Color3.fromRGB(210, 195, 255)
 	GUIObject.ClothesSearch.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ClothesSearch.TextScaled = true
 	GUIObject.ClothesSearch.TextSize = 14.000
@@ -21069,6 +21648,8 @@ function RoClothes(Player)
 
 	GUIObject.UIGridLayout.Parent = GUIObject.ClothesButtonFrame
 	GUIObject.UIGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	GUIObject.UIGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	GUIObject.UIGridLayout.CellPadding = UDim2.new(0.01, 0, 0.01, 0)
 	GUIObject.UIGridLayout.CellSize = UDim2.new(0.300000012, 0, 0.174999997, 0)
 
 	GUIObject.Menu.Name = "Menu"
@@ -21086,11 +21667,11 @@ function RoClothes(Player)
 
 	GUIObject.UIAspectRatioConstraint_2.Parent = GUIObject.DestroyFrame
 
-	GUIObject.UIGradient_3.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 0, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 0, 0))}
+	GUIObject.UIGradient_3.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(95, 15, 15)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(95, 15, 15))}
 	GUIObject.UIGradient_3.Rotation = -90
 	GUIObject.UIGradient_3.Parent = GUIObject.DestroyFrame
 
-	GUIObject.UICorner_3.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_3.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_3.Parent = GUIObject.DestroyFrame
 
 	GUIObject.DestroyButton.Name = "DestroyButton"
@@ -21098,12 +21679,12 @@ function RoClothes(Player)
 	GUIObject.DestroyButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.DestroyButton.BackgroundTransparency = 1.000
 	GUIObject.DestroyButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.DestroyButton.Font = Enum.Font.Code
+	GUIObject.DestroyButton.Font = Enum.Font.GothamMedium
 	GUIObject.DestroyButton.Text = "DESTROY"
 	GUIObject.DestroyButton.TextColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.DestroyButton.TextScaled = true
 	GUIObject.DestroyButton.TextSize = 14.000
-	GUIObject.DestroyButton.TextStrokeColor3 = Color3.fromRGB(104, 0, 0)
+	GUIObject.DestroyButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 	GUIObject.DestroyButton.TextStrokeTransparency = 0.000
 	GUIObject.DestroyButton.TextWrapped = true
 
@@ -21115,11 +21696,11 @@ function RoClothes(Player)
 	GUIObject.PlayerFrame.Position = UDim2.new(0.5, 0, 0.025, 0)
 	GUIObject.PlayerFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_4.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(54, 0, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 0, 100))}
+	GUIObject.UIGradient_4.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(72, 28, 125)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(58, 20, 100))}
 	GUIObject.UIGradient_4.Rotation = -90
 	GUIObject.UIGradient_4.Parent = GUIObject.PlayerFrame
 
-	GUIObject.UICorner_4.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_4.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_4.Parent = GUIObject.PlayerFrame
 
 	GUIObject.PlayerExecute.Name = "PlayerExecute"
@@ -21128,7 +21709,7 @@ function RoClothes(Player)
 	GUIObject.PlayerExecute.BackgroundTransparency = 1.000
 	GUIObject.PlayerExecute.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.PlayerExecute.ClearTextOnFocus = false
-	GUIObject.PlayerExecute.Font = Enum.Font.Code
+	GUIObject.PlayerExecute.Font = Enum.Font.GothamMedium
 	GUIObject.PlayerExecute.PlaceholderText = "Player To Execute (Self = Yourself)"
 	GUIObject.PlayerExecute.Text = "Self"
 	GUIObject.PlayerExecute.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -21136,6 +21717,41 @@ function RoClothes(Player)
 	GUIObject.PlayerExecute.TextSize = 14.000
 	GUIObject.PlayerExecute.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.PlayerExecute.TextWrapped = true
+
+	GUIObject.PlayerDropdownToggle.Name = "PlayerDropdownToggle"
+	GUIObject.PlayerDropdownToggle.Parent = GUIObject.PlayerFrame
+	GUIObject.PlayerDropdownToggle.AnchorPoint = Vector2.new(1, 0.5)
+	GUIObject.PlayerDropdownToggle.BackgroundColor3 = Color3.fromRGB(48, 24, 80)
+	GUIObject.PlayerDropdownToggle.BackgroundTransparency = 0.300
+	GUIObject.PlayerDropdownToggle.BorderSizePixel = 0
+	GUIObject.PlayerDropdownToggle.Position = UDim2.new(1, -2, 0.5, 0)
+	GUIObject.PlayerDropdownToggle.Size = UDim2.new(0.18, 0, 0.85, 0)
+	GUIObject.PlayerDropdownToggle.ZIndex = 5
+	GUIObject.PlayerDropdownToggle.Font = Enum.Font.GothamBold
+	GUIObject.PlayerDropdownToggle.Text = "▼"
+	GUIObject.PlayerDropdownToggle.TextColor3 = Color3.fromRGB(230, 230, 240)
+	GUIObject.PlayerDropdownToggle.TextScaled = true
+	GUIObject.PlayerDropdownToggle.AutoButtonColor = true
+
+	GUIObject.PlayerDropdownFrame.Name = "PlayerDropdownFrame"
+	GUIObject.PlayerDropdownFrame.Parent = GUIObject.Screen
+	GUIObject.PlayerDropdownFrame.BackgroundColor3 = Color3.fromRGB(20, 12, 36)
+	GUIObject.PlayerDropdownFrame.BackgroundTransparency = 0.100
+	GUIObject.PlayerDropdownFrame.BorderSizePixel = 0
+	GUIObject.PlayerDropdownFrame.Position = UDim2.new(0, 0, 0, 0)
+	GUIObject.PlayerDropdownFrame.Size = UDim2.new(0, 100, 0, 100)
+	GUIObject.PlayerDropdownFrame.Visible = false
+	GUIObject.PlayerDropdownFrame.ZIndex = 100
+	GUIObject.PlayerDropdownFrame.ClipsDescendants = true
+	GUIObject.PlayerDropdownFrame.ScrollBarThickness = 4
+	GUIObject.PlayerDropdownFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+	GUIObject.PlayerDropdownFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+	GUIObject.PlayerDropdownLayout.Name = "PlayerDropdownLayout"
+	GUIObject.PlayerDropdownLayout.Parent = GUIObject.PlayerDropdownFrame
+	GUIObject.PlayerDropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	GUIObject.PlayerDropdownLayout.Padding = UDim.new(0, 2)
+	GUIObject.PlayerDropdownLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 	GUIObject.BreastsTypeFrame.Name = "BreastsTypeFrame"
 	GUIObject.BreastsTypeFrame.Parent = GUIObject.Menu
@@ -21145,11 +21761,11 @@ function RoClothes(Player)
 	GUIObject.BreastsTypeFrame.Position = UDim2.new(0.5, 0, 0.195, 0)
 	GUIObject.BreastsTypeFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_5.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_5.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(30, 72, 155)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(24, 58, 125))}
 	GUIObject.UIGradient_5.Rotation = -90
 	GUIObject.UIGradient_5.Parent = GUIObject.BreastsTypeFrame
 
-	GUIObject.UICorner_5.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_5.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_5.Parent = GUIObject.BreastsTypeFrame
 
 	GUIObject.BreastsTypeButton.Name = "BreastsTypeButton"
@@ -21158,7 +21774,7 @@ function RoClothes(Player)
 	GUIObject.BreastsTypeButton.BackgroundTransparency = 1.000
 	GUIObject.BreastsTypeButton.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.BreastsTypeButton.ZIndex = 2
-	GUIObject.BreastsTypeButton.Font = Enum.Font.Code
+	GUIObject.BreastsTypeButton.Font = Enum.Font.GothamMedium
 	GUIObject.BreastsTypeButton.Text = "Breasts Type: 1"
 	GUIObject.BreastsTypeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.BreastsTypeButton.TextScaled = true
@@ -21168,24 +21784,25 @@ function RoClothes(Player)
 	GUIObject.BundleSearch.Name = "BundleSearch"
 	GUIObject.BundleSearch.Parent = GUIObject.Bundles
 	GUIObject.BundleSearch.AnchorPoint = Vector2.new(0.5, 0)
-	GUIObject.BundleSearch.BackgroundColor3 = Color3.fromRGB(6, 0, 76)
+	GUIObject.BundleSearch.BackgroundColor3 = Color3.fromRGB(18, 16, 28)
 	GUIObject.BundleSearch.BorderColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.BundleSearch.Position = UDim2.new(0.5, 0, 1.02, 0)
 	GUIObject.BundleSearch.Size = UDim2.new(.9, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A17.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(48, 48, 48)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 255, 255))}
+	GUIObject.UIGradient_A17.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(75, 62, 118)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(95, 80, 142))}
 	GUIObject.UIGradient_A17.Rotation = -90
 	GUIObject.UIGradient_A17.Parent = GUIObject.BundleSearch
 
 	Function.UIStrokeCreate(GUIObject.BundleSearch).ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-	GUIObject.UICorner_A17.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A17.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A17.Parent = GUIObject.BundleSearch
 
 	--GUIObject.ClothesSearch.ClearTextOnFocus = false
-	GUIObject.BundleSearch.Font = Enum.Font.Code
+	GUIObject.BundleSearch.Font = Enum.Font.GothamMedium
 	GUIObject.BundleSearch.Text = ""
 	GUIObject.BundleSearch.PlaceholderText = "Search Bundles"
+	GUIObject.BundleSearch.PlaceholderColor3 = Color3.fromRGB(210, 195, 255)
 	GUIObject.BundleSearch.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.BundleSearch.TextScaled = true
 	GUIObject.BundleSearch.TextSize = 14.000
@@ -21200,11 +21817,11 @@ function RoClothes(Player)
 	GUIObject.BundleFrame.Position = UDim2.new(0.5, 0, 0.11, 0)
 	GUIObject.BundleFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_6.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(30, 0, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(55, 0, 100))}
+	GUIObject.UIGradient_6.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(65, 22, 115)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(52, 16, 92))}
 	GUIObject.UIGradient_6.Rotation = -90
 	GUIObject.UIGradient_6.Parent = GUIObject.BundleFrame
 
-	GUIObject.UICorner_6.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_6.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_6.Parent = GUIObject.BundleFrame
 
 	GUIObject.BundleText.Name = "BundleText"
@@ -21213,7 +21830,7 @@ function RoClothes(Player)
 	GUIObject.BundleText.BackgroundTransparency = 1.000
 	GUIObject.BundleText.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.BundleText.ZIndex = 2
-	GUIObject.BundleText.Font = Enum.Font.Code
+	GUIObject.BundleText.Font = Enum.Font.GothamMedium
 	GUIObject.BundleText.Text = "Bundle: nil"
 	GUIObject.BundleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.BundleText.TextScaled = true
@@ -21228,11 +21845,11 @@ function RoClothes(Player)
 	GUIObject.DelayFrame.Position = UDim2.new(0.5, 0, 0.535, 0)
 	GUIObject.DelayFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_7.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 67))}
+	GUIObject.UIGradient_7.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 80, 55)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 80, 55))}
 	GUIObject.UIGradient_7.Rotation = -90
 	GUIObject.UIGradient_7.Parent = GUIObject.DelayFrame
 
-	GUIObject.UICorner_7.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_7.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_7.Parent = GUIObject.DelayFrame
 
 	GUIObject.DelayTimeText.Name = "DelayTimeText"
@@ -21240,7 +21857,7 @@ function RoClothes(Player)
 	GUIObject.DelayTimeText.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.DelayTimeText.BackgroundTransparency = 1.000
 	GUIObject.DelayTimeText.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.DelayTimeText.Font = Enum.Font.Code
+	GUIObject.DelayTimeText.Font = Enum.Font.GothamMedium
 	GUIObject.DelayTimeText.PlaceholderText = "Delay Time After Respawn"
 	GUIObject.DelayTimeText.Text = "1"
 	GUIObject.DelayTimeText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -21256,10 +21873,10 @@ function RoClothes(Player)
 	GUIObject.AutoExecuteFrame.Position = UDim2.new(0.5, 0, 0.62, 0)
 	GUIObject.AutoExecuteFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UICorner_8.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_8.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_8.Parent = GUIObject.AutoExecuteFrame
 
-	GUIObject.UIGradient_8.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 67))}
+	GUIObject.UIGradient_8.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 80, 55)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 80, 55))}
 	GUIObject.UIGradient_8.Rotation = -90
 	GUIObject.UIGradient_8.Parent = GUIObject.AutoExecuteFrame
 
@@ -21270,12 +21887,12 @@ function RoClothes(Player)
 	GUIObject.AutoExecuteButton.BorderSizePixel = 0
 	GUIObject.AutoExecuteButton.LayoutOrder = 1
 	GUIObject.AutoExecuteButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.AutoExecuteButton.Font = Enum.Font.Code
+	GUIObject.AutoExecuteButton.Font = Enum.Font.GothamMedium
 	GUIObject.AutoExecuteButton.Text = "Auto Execute"
 	GUIObject.AutoExecuteButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.AutoExecuteButton.TextScaled = true
 	GUIObject.AutoExecuteButton.TextSize = 14.000
-	GUIObject.AutoExecuteButton.TextStrokeColor3 = Color3.fromRGB(0, 255, 0)
+	GUIObject.AutoExecuteButton.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 	GUIObject.AutoExecuteButton.TextStrokeTransparency = 0.000
 	GUIObject.AutoExecuteButton.TextWrapped = true
 
@@ -21287,11 +21904,11 @@ function RoClothes(Player)
 	GUIObject.BundleBodyColorFrame.Position = UDim2.new(0.5, 0, 0.365, 0)
 	GUIObject.BundleBodyColorFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_15.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_15.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(140, 18, 18)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(140, 18, 18))}
 	GUIObject.UIGradient_15.Rotation = -90
 	GUIObject.UIGradient_15.Parent = GUIObject.BundleBodyColorFrame
 
-	GUIObject.UICorner_15.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_15.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_15.Parent = GUIObject.BundleBodyColorFrame
 
 	GUIObject.BundleBodyColorButton.Name = "BundleBodyColorButton"
@@ -21301,12 +21918,12 @@ function RoClothes(Player)
 	GUIObject.BundleBodyColorButton.BorderSizePixel = 0
 	GUIObject.BundleBodyColorButton.LayoutOrder = 1
 	GUIObject.BundleBodyColorButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.BundleBodyColorButton.Font = Enum.Font.Code
+	GUIObject.BundleBodyColorButton.Font = Enum.Font.GothamMedium
 	GUIObject.BundleBodyColorButton.Text = "Bundle Body Color"
 	GUIObject.BundleBodyColorButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.BundleBodyColorButton.TextScaled = true
 	GUIObject.BundleBodyColorButton.TextSize = 14.000
-	GUIObject.BundleBodyColorButton.TextStrokeColor3 = Color3.fromRGB(0, 255, 0)
+	GUIObject.BundleBodyColorButton.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 	GUIObject.BundleBodyColorButton.TextStrokeTransparency = 0.000
 	GUIObject.BundleBodyColorButton.TextWrapped = true
 
@@ -21318,10 +21935,10 @@ function RoClothes(Player)
 	GUIObject.ResetFrame.Position = UDim2.new(0.5, 0, 0.705, 0)
 	GUIObject.ResetFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UICorner_9.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_9.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_9.Parent = GUIObject.ResetFrame
 
-	GUIObject.UIGradient_9.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(54, 0, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 0, 0))}
+	GUIObject.UIGradient_9.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(185, 25, 25)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(155, 18, 18))}
 	GUIObject.UIGradient_9.Rotation = -90
 	GUIObject.UIGradient_9.Parent = GUIObject.ResetFrame
 
@@ -21332,12 +21949,13 @@ function RoClothes(Player)
 	GUIObject.ResetButton.BorderSizePixel = 0
 	GUIObject.ResetButton.LayoutOrder = 1
 	GUIObject.ResetButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.ResetButton.Font = Enum.Font.Code
+	GUIObject.ResetButton.Font = Enum.Font.GothamMedium
 	GUIObject.ResetButton.Text = "Reset"
-	GUIObject.ResetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	GUIObject.ResetButton.TextColor3 = Color3.fromRGB(255, 180, 180)
 	GUIObject.ResetButton.TextScaled = true
 	GUIObject.ResetButton.TextSize = 14.000
-	GUIObject.ResetButton.TextStrokeColor3 = Color3.fromRGB(99, 0, 0)
+	GUIObject.ResetButton.TextStrokeColor3 = Color3.fromRGB(200, 40, 40)
+	GUIObject.ResetButton.TextStrokeTransparency = 0.000
 	GUIObject.ResetButton.TextWrapped = true
 
 	GUIObject.ExecuteFrame.Name = "ExecuteFrame"
@@ -21348,10 +21966,10 @@ function RoClothes(Player)
 	GUIObject.ExecuteFrame.Position = UDim2.new(0.5, 0, 0.79, 0)
 	GUIObject.ExecuteFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UICorner_10.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_10.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_10.Parent = GUIObject.ExecuteFrame
 
-	GUIObject.UIGradient_10.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(54, 0, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 0, 0))}
+	GUIObject.UIGradient_10.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(15, 155, 62)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(12, 125, 50))}
 	GUIObject.UIGradient_10.Rotation = -90
 	GUIObject.UIGradient_10.Parent = GUIObject.ExecuteFrame
 
@@ -21362,12 +21980,13 @@ function RoClothes(Player)
 	GUIObject.ExecuteButton.BorderSizePixel = 0
 	GUIObject.ExecuteButton.LayoutOrder = 1
 	GUIObject.ExecuteButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.ExecuteButton.Font = Enum.Font.Code
+	GUIObject.ExecuteButton.Font = Enum.Font.GothamMedium
 	GUIObject.ExecuteButton.Text = "Execute"
-	GUIObject.ExecuteButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	GUIObject.ExecuteButton.TextColor3 = Color3.fromRGB(180, 255, 210)
 	GUIObject.ExecuteButton.TextScaled = true
 	GUIObject.ExecuteButton.TextSize = 14.000
-	GUIObject.ExecuteButton.TextStrokeColor3 = Color3.fromRGB(99, 0, 0)
+	GUIObject.ExecuteButton.TextStrokeColor3 = Color3.fromRGB(0, 150, 60)
+	GUIObject.ExecuteButton.TextStrokeTransparency = 0.000
 	GUIObject.ExecuteButton.TextWrapped = true
 
 	GUIObject.ToneFrame.Name = "ToneFrame"
@@ -21378,11 +21997,11 @@ function RoClothes(Player)
 	GUIObject.ToneFrame.Position = UDim2.new(0.5, 0, 0.28, 0)
 	GUIObject.ToneFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_11.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_11.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(30, 72, 155)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(24, 58, 125))}
 	GUIObject.UIGradient_11.Rotation = -90
 	GUIObject.UIGradient_11.Parent = GUIObject.ToneFrame
 
-	GUIObject.UICorner_11.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_11.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_11.Parent = GUIObject.ToneFrame
 
 	GUIObject.ToneButton.Name = "ToneButton"
@@ -21392,12 +22011,12 @@ function RoClothes(Player)
 	GUIObject.ToneButton.BorderSizePixel = 0
 	GUIObject.ToneButton.LayoutOrder = 1
 	GUIObject.ToneButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.ToneButton.Font = Enum.Font.Code
+	GUIObject.ToneButton.Font = Enum.Font.GothamMedium
 	GUIObject.ToneButton.Text = "Tone: Base"
 	GUIObject.ToneButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ToneButton.TextScaled = true
 	GUIObject.ToneButton.TextSize = 14.000
-	GUIObject.ToneButton.TextStrokeColor3 = Color3.fromRGB(57, 57, 57)
+	GUIObject.ToneButton.TextStrokeColor3 = Color3.fromRGB(130, 130, 145)
 	GUIObject.ToneButton.TextWrapped = true
 
 	GUIObject.Bundles.Name = "Bundles"
@@ -21424,6 +22043,8 @@ function RoClothes(Player)
 
 	GUIObject.UIGridLayout_2.Parent = GUIObject.BundlesButtonFrame
 	GUIObject.UIGridLayout_2.SortOrder = Enum.SortOrder.LayoutOrder
+	GUIObject.UIGridLayout_2.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	GUIObject.UIGridLayout_2.CellPadding = UDim2.new(0.01, 0, 0.01, 0)
 	GUIObject.UIGridLayout_2.CellSize = UDim2.new(0.300000012, 0, 0.174999997, 0)
 
 	GUIObject.ButtonFrame.Name = "ButtonFrame"
@@ -21448,7 +22069,7 @@ function RoClothes(Player)
 
 	GUIObject.UIAspectRatioConstraint_3.Parent = GUIObject.Menu_2
 
-	GUIObject.UICorner_12.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_12.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_12.Parent = GUIObject.Menu_2
 
 	GUIObject.MenuButton.Name = "MenuButton"
@@ -21456,7 +22077,7 @@ function RoClothes(Player)
 	GUIObject.MenuButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.MenuButton.BackgroundTransparency = 1.000
 	GUIObject.MenuButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.MenuButton.Font = Enum.Font.Code
+	GUIObject.MenuButton.Font = Enum.Font.GothamMedium
 	GUIObject.MenuButton.Text = "Menu"
 	GUIObject.MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.MenuButton.TextScaled = true
@@ -21464,7 +22085,7 @@ function RoClothes(Player)
 	GUIObject.MenuButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.MenuButton.TextWrapped = true
 
-	GUIObject.UIGradient_12.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_12.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(38, 32, 60)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 25, 48))}
 	GUIObject.UIGradient_12.Rotation = -90
 	GUIObject.UIGradient_12.Parent = GUIObject.Menu_2
 
@@ -21477,7 +22098,7 @@ function RoClothes(Player)
 
 	GUIObject.UIAspectRatioConstraint_7.Parent = GUIObject.Menu2_2
 
-	GUIObject.UICorner_20.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_20.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_20.Parent = GUIObject.Menu2_2
 
 	GUIObject.Menu2Button.Name = "Menu2Button"
@@ -21485,7 +22106,7 @@ function RoClothes(Player)
 	GUIObject.Menu2Button.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.Menu2Button.BackgroundTransparency = 1.000
 	GUIObject.Menu2Button.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.Menu2Button.Font = Enum.Font.Code
+	GUIObject.Menu2Button.Font = Enum.Font.GothamMedium
 	GUIObject.Menu2Button.Text = "Settings"
 	GUIObject.Menu2Button.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.Menu2Button.TextScaled = true
@@ -21493,7 +22114,7 @@ function RoClothes(Player)
 	GUIObject.Menu2Button.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.Menu2Button.TextWrapped = true
 
-	GUIObject.UIGradient_19.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_19.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(38, 32, 60)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 25, 48))}
 	GUIObject.UIGradient_19.Rotation = -90
 	GUIObject.UIGradient_19.Parent = GUIObject.Menu2_2
 
@@ -21506,7 +22127,7 @@ function RoClothes(Player)
 
 	GUIObject.M3UIAspectRatioConstraint.Parent = GUIObject.Menu3_3
 
-	GUIObject.M3UICorner.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.M3UICorner.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.M3UICorner.Parent = GUIObject.Menu3_3
 
 	GUIObject.Menu3Button.Name = "Menu3Button"
@@ -21514,7 +22135,7 @@ function RoClothes(Player)
 	GUIObject.Menu3Button.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.Menu3Button.BackgroundTransparency = 1.000
 	GUIObject.Menu3Button.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.Menu3Button.Font = Enum.Font.Code
+	GUIObject.Menu3Button.Font = Enum.Font.GothamMedium
 	GUIObject.Menu3Button.Text = "Body"
 	GUIObject.Menu3Button.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.Menu3Button.TextScaled = true
@@ -21522,7 +22143,7 @@ function RoClothes(Player)
 	GUIObject.Menu3Button.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.Menu3Button.TextWrapped = true
 
-	GUIObject.M3UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.M3UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(38, 32, 60)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 25, 48))}
 	GUIObject.M3UIGradient.Rotation = -90
 	GUIObject.M3UIGradient.Parent = GUIObject.Menu3_3
 
@@ -21535,7 +22156,7 @@ function RoClothes(Player)
 
 	GUIObject.UIAspectRatioConstraint_4.Parent = GUIObject.Clothes_2
 
-	GUIObject.UICorner_13.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_13.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_13.Parent = GUIObject.Clothes_2
 
 	GUIObject.ClothesButton.Name = "ClothesButton"
@@ -21543,7 +22164,7 @@ function RoClothes(Player)
 	GUIObject.ClothesButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ClothesButton.BackgroundTransparency = 1.000
 	GUIObject.ClothesButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.ClothesButton.Font = Enum.Font.Code
+	GUIObject.ClothesButton.Font = Enum.Font.GothamMedium
 	GUIObject.ClothesButton.Text = "Clothes"
 	GUIObject.ClothesButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ClothesButton.TextScaled = true
@@ -21551,7 +22172,7 @@ function RoClothes(Player)
 	GUIObject.ClothesButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ClothesButton.TextWrapped = true
 
-	GUIObject.UIGradient_13.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_13.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(38, 32, 60)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 25, 48))}
 	GUIObject.UIGradient_13.Rotation = -90
 	GUIObject.UIGradient_13.Parent = GUIObject.Clothes_2
 
@@ -21564,7 +22185,7 @@ function RoClothes(Player)
 
 	GUIObject.UIAspectRatioConstraint_5.Parent = GUIObject.Bundles_2
 
-	GUIObject.UICorner_14.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_14.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_14.Parent = GUIObject.Bundles_2
 
 	GUIObject.BundlesButton.Name = "BundlesButton"
@@ -21572,7 +22193,7 @@ function RoClothes(Player)
 	GUIObject.BundlesButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.BundlesButton.BackgroundTransparency = 1.000
 	GUIObject.BundlesButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.BundlesButton.Font = Enum.Font.Code
+	GUIObject.BundlesButton.Font = Enum.Font.GothamMedium
 	GUIObject.BundlesButton.Text = "Bundles"
 	GUIObject.BundlesButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.BundlesButton.TextScaled = true
@@ -21580,9 +22201,20 @@ function RoClothes(Player)
 	GUIObject.BundlesButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.BundlesButton.TextWrapped = true
 
-	GUIObject.UIGradient_14.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_14.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(38, 32, 60)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 25, 48))}
 	GUIObject.UIGradient_14.Rotation = -90
 	GUIObject.UIGradient_14.Parent = GUIObject.Bundles_2
+
+	-- V4.3.35: Add UIStroke border to each tab button for visual separation
+	for _, tabBtn in pairs({GUIObject.Menu_2, GUIObject.Menu2_2, GUIObject.Menu3_3, GUIObject.Clothes_2, GUIObject.Bundles_2, GUIObject.Catalog_2, GUIObject.Edit_2}) do
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = Color3.fromRGB(255, 255, 255)
+		stroke.Thickness = 1.2
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		stroke.Parent = tabBtn
+	end
+	-- V4.3.35: Highlight Menu as the initial active tab (Menu is visible by default)
+	GUIObject.UIGradient_12.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(95, 55, 185)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(78, 44, 155))}
 
 	GUIObject.NameFrame.Name = "NameFrame"
 	GUIObject.NameFrame.Parent = GUIObject.MainFrame
@@ -21597,8 +22229,8 @@ function RoClothes(Player)
 	GUIObject.NameText.BackgroundTransparency = 1.000
 	GUIObject.NameText.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.NameText.ZIndex = 2
-	GUIObject.NameText.Font = Enum.Font.Code
-	GUIObject.NameText.Text = "RoClothes modded"
+	GUIObject.NameText.Font = Enum.Font.GothamMedium
+	GUIObject.NameText.Text = "RoClothes modded | LERP FORK"
 	GUIObject.NameText.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.NameText.TextScaled = true
 	GUIObject.NameText.TextSize = 14.000
@@ -21612,7 +22244,7 @@ function RoClothes(Player)
 	GUIObject.VersionText.Position = UDim2.new(0, 0, 1.06666636, 0)
 	GUIObject.VersionText.Size = UDim2.new(1, 0, 0.799999952, 0)
 	GUIObject.VersionText.ZIndex = 2
-	GUIObject.VersionText.Font = Enum.Font.Code
+	GUIObject.VersionText.Font = Enum.Font.GothamMedium
 	GUIObject.VersionText.Text = "Version - "..CVersion
 	GUIObject.VersionText.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.VersionText.TextScaled = true
@@ -21625,13 +22257,13 @@ function RoClothes(Player)
 	GUIObject.KeybindFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.KeybindFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	GUIObject.KeybindFrame.Position = UDim2.new(0.28, 0, 0.89, 0)
-	GUIObject.KeybindFrame.Size = UDim2.new(0.684944391, 0, 0.0646399707, 0)
+	GUIObject.KeybindFrame.Size = UDim2.new(0.660, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_16.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(26, 27, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 47, 0))}
+	GUIObject.UIGradient_16.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(72, 68, 18)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(72, 68, 18))}
 	GUIObject.UIGradient_16.Rotation = -90
 	GUIObject.UIGradient_16.Parent = GUIObject.KeybindFrame
 
-	GUIObject.UICorner_16.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_16.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_16.Parent = GUIObject.KeybindFrame
 
 	GUIObject.KeybindButton.Name = "KeybindButton"
@@ -21639,7 +22271,7 @@ function RoClothes(Player)
 	GUIObject.KeybindButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.KeybindButton.BackgroundTransparency = 1.000
 	GUIObject.KeybindButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.KeybindButton.Font = Enum.Font.Code
+	GUIObject.KeybindButton.Font = Enum.Font.GothamMedium
 	GUIObject.KeybindButton.Text = "Insert"
 	GUIObject.KeybindButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.KeybindButton.TextScaled = true
@@ -21655,11 +22287,11 @@ function RoClothes(Player)
 	GUIObject.FaceFrame.Position = UDim2.new(0.5, 0, 0.449999988, 0)
 	GUIObject.FaceFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_17.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_17.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(140, 18, 18)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(140, 18, 18))}
 	GUIObject.UIGradient_17.Rotation = -90
 	GUIObject.UIGradient_17.Parent = GUIObject.FaceFrame
 
-	GUIObject.UICorner_17.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_17.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_17.Parent = GUIObject.FaceFrame
 
 	GUIObject.FaceButton.Name = "FaceButton"
@@ -21669,12 +22301,12 @@ function RoClothes(Player)
 	GUIObject.FaceButton.BorderSizePixel = 0
 	GUIObject.FaceButton.LayoutOrder = 1
 	GUIObject.FaceButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.FaceButton.Font = Enum.Font.Code
+	GUIObject.FaceButton.Font = Enum.Font.GothamMedium
 	GUIObject.FaceButton.Text = "Face"
 	GUIObject.FaceButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.FaceButton.TextScaled = true
 	GUIObject.FaceButton.TextSize = 14.000
-	GUIObject.FaceButton.TextStrokeColor3 = Color3.fromRGB(0, 255, 0)
+	GUIObject.FaceButton.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 	GUIObject.FaceButton.TextStrokeTransparency = 0.000
 	GUIObject.FaceButton.TextWrapped = true
 
@@ -21693,11 +22325,11 @@ function RoClothes(Player)
 	GUIObject.LocalTransparencyFrame.Position = UDim2.new(0.647907138, 0, 0.0250000004, 0)
 	GUIObject.LocalTransparencyFrame.Size = UDim2.new(0.595495105, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_18.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 93))}
+	GUIObject.UIGradient_18.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(15, 65, 65)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(15, 65, 65))}
 	GUIObject.UIGradient_18.Rotation = -90
 	GUIObject.UIGradient_18.Parent = GUIObject.LocalTransparencyFrame
 
-	GUIObject.UICorner_18.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_18.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_18.Parent = GUIObject.LocalTransparencyFrame
 
 	GUIObject.LocalTransparencyButton.Name = "LocalTransparency"
@@ -21706,7 +22338,7 @@ function RoClothes(Player)
 	GUIObject.LocalTransparencyButton.BackgroundTransparency = 1.000
 	GUIObject.LocalTransparencyButton.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.LocalTransparencyButton.ClearTextOnFocus = false
-	GUIObject.LocalTransparencyButton.Font = Enum.Font.Code
+	GUIObject.LocalTransparencyButton.Font = Enum.Font.GothamMedium
 	GUIObject.LocalTransparencyButton.PlaceholderText = "Player To Execute (Self = Yourself)"
 	GUIObject.LocalTransparencyButton.Text = "0"
 	GUIObject.LocalTransparencyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -21786,7 +22418,7 @@ function RoClothes(Player)
 	GUIObject.HeadButton.Image = "rbxasset0"
 	GUIObject.HeadButton.ImageTransparency = 1.000
 
-	GUIObject.UICorner_19.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_19.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_19.Parent = GUIObject.HeadButton
 
 	GUIObject.HatButton.Name = "Hat"
@@ -21808,11 +22440,11 @@ function RoClothes(Player)
 	GUIObject.MeshSizeLockFrame.Position = UDim2.new(0.5, 0, 0.289999992, 0)
 	GUIObject.MeshSizeLockFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_20.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_20.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(140, 18, 18)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(140, 18, 18))}
 	GUIObject.UIGradient_20.Rotation = -90
 	GUIObject.UIGradient_20.Parent = GUIObject.MeshSizeLockFrame
 
-	GUIObject.UICorner_21.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_21.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_21.Parent = GUIObject.MeshSizeLockFrame
 
 	GUIObject.MeshSizeLockButton.Name = "MeshSizeLockButton"
@@ -21822,12 +22454,12 @@ function RoClothes(Player)
 	GUIObject.MeshSizeLockButton.BorderSizePixel = 0
 	GUIObject.MeshSizeLockButton.LayoutOrder = 1
 	GUIObject.MeshSizeLockButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.MeshSizeLockButton.Font = Enum.Font.Code
+	GUIObject.MeshSizeLockButton.Font = Enum.Font.GothamMedium
 	GUIObject.MeshSizeLockButton.Text = "Mesh Size Lock"
 	GUIObject.MeshSizeLockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.MeshSizeLockButton.TextScaled = true
 	GUIObject.MeshSizeLockButton.TextSize = 14.000
-	GUIObject.MeshSizeLockButton.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+	GUIObject.MeshSizeLockButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 	GUIObject.MeshSizeLockButton.TextStrokeTransparency = 0.000
 	GUIObject.MeshSizeLockButton.TextWrapped = true
 
@@ -21839,11 +22471,11 @@ function RoClothes(Player)
 	GUIObject.AccessorySizeLockFrame.Position = UDim2.new(0.5, 0, 0.375, 0)
 	GUIObject.AccessorySizeLockFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_21.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_21.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(140, 18, 18)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(140, 18, 18))}
 	GUIObject.UIGradient_21.Rotation = -90
 	GUIObject.UIGradient_21.Parent = GUIObject.AccessorySizeLockFrame
 
-	GUIObject.UICorner_22.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_22.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_22.Parent = GUIObject.AccessorySizeLockFrame
 
 	GUIObject.AccessorySizeLockButton.Name = "AccessorySizeLockButton"
@@ -21853,12 +22485,12 @@ function RoClothes(Player)
 	GUIObject.AccessorySizeLockButton.BorderSizePixel = 0
 	GUIObject.AccessorySizeLockButton.LayoutOrder = 1
 	GUIObject.AccessorySizeLockButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.AccessorySizeLockButton.Font = Enum.Font.Code
+	GUIObject.AccessorySizeLockButton.Font = Enum.Font.GothamMedium
 	GUIObject.AccessorySizeLockButton.Text = "Accessory Size Lock"
 	GUIObject.AccessorySizeLockButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.AccessorySizeLockButton.TextScaled = true
 	GUIObject.AccessorySizeLockButton.TextSize = 14.000
-	GUIObject.AccessorySizeLockButton.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+	GUIObject.AccessorySizeLockButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 	GUIObject.AccessorySizeLockButton.TextStrokeTransparency = 0.000
 	GUIObject.AccessorySizeLockButton.TextWrapped = true
 
@@ -21870,11 +22502,11 @@ function RoClothes(Player)
 	GUIObject.MeshBasePartInvisibleFrame.Position = UDim2.new(0.271, 0, 0.46, 0)
 	GUIObject.MeshBasePartInvisibleFrame.Size = UDim2.new(0.425, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_22.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_22.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(140, 18, 18)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(140, 18, 18))}
 	GUIObject.UIGradient_22.Rotation = -90
 	GUIObject.UIGradient_22.Parent = GUIObject.MeshBasePartInvisibleFrame
 
-	GUIObject.UICorner_23.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_23.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_23.Parent = GUIObject.MeshBasePartInvisibleFrame
 
 	GUIObject.MeshBasePartInvisibleButton.Name = "MeshBasePartInvisibleButton"
@@ -21884,12 +22516,12 @@ function RoClothes(Player)
 	GUIObject.MeshBasePartInvisibleButton.BorderSizePixel = 0
 	GUIObject.MeshBasePartInvisibleButton.LayoutOrder = 1
 	GUIObject.MeshBasePartInvisibleButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.MeshBasePartInvisibleButton.Font = Enum.Font.Code
+	GUIObject.MeshBasePartInvisibleButton.Font = Enum.Font.GothamMedium
 	GUIObject.MeshBasePartInvisibleButton.Text = "Mesh Base Part Invisible"
 	GUIObject.MeshBasePartInvisibleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.MeshBasePartInvisibleButton.TextScaled = true
 	GUIObject.MeshBasePartInvisibleButton.TextSize = 14.000
-	GUIObject.MeshBasePartInvisibleButton.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+	GUIObject.MeshBasePartInvisibleButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 	GUIObject.MeshBasePartInvisibleButton.TextStrokeTransparency = 0.000
 	GUIObject.MeshBasePartInvisibleButton.TextWrapped = true
 
@@ -21901,11 +22533,11 @@ function RoClothes(Player)
 	GUIObject.BodyPartPhysicsFrame.Position = UDim2.new(0.5, 0, 0.545, 0)
 	GUIObject.BodyPartPhysicsFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_23.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_23.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(140, 18, 18)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(140, 18, 18))}
 	GUIObject.UIGradient_23.Rotation = -90
 	GUIObject.UIGradient_23.Parent = GUIObject.BodyPartPhysicsFrame
 
-	GUIObject.UICorner_24.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_24.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_24.Parent = GUIObject.BodyPartPhysicsFrame
 
 	GUIObject.BodyPartPhysicsButton.Name = "BodyPartPhysicsButton"
@@ -21915,12 +22547,12 @@ function RoClothes(Player)
 	GUIObject.BodyPartPhysicsButton.BorderSizePixel = 0
 	GUIObject.BodyPartPhysicsButton.LayoutOrder = 1
 	GUIObject.BodyPartPhysicsButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.BodyPartPhysicsButton.Font = Enum.Font.Code
+	GUIObject.BodyPartPhysicsButton.Font = Enum.Font.GothamMedium
 	GUIObject.BodyPartPhysicsButton.Text = "Body Part Physics"
 	GUIObject.BodyPartPhysicsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.BodyPartPhysicsButton.TextScaled = true
 	GUIObject.BodyPartPhysicsButton.TextSize = 14.000
-	GUIObject.BodyPartPhysicsButton.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+	GUIObject.BodyPartPhysicsButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 	GUIObject.BodyPartPhysicsButton.TextStrokeTransparency = 0.000
 	GUIObject.BodyPartPhysicsButton.TextWrapped = true
 
@@ -21931,11 +22563,11 @@ function RoClothes(Player)
 	GUIObject.MethodFrame.Position = UDim2.new(0.0542876273, 0, 0.89, 0)
 	GUIObject.MethodFrame.Size = UDim2.new(0.684944391, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_24.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(26, 27, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 47, 0))}
+	GUIObject.UIGradient_24.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(115, 88, 14)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(92, 70, 10))}
 	GUIObject.UIGradient_24.Rotation = -90
 	GUIObject.UIGradient_24.Parent = GUIObject.MethodFrame
 
-	GUIObject.UICorner_25.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_25.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_25.Parent = GUIObject.MethodFrame
 
 	GUIObject.MethodButton.Name = "MethodButton"
@@ -21943,7 +22575,7 @@ function RoClothes(Player)
 	GUIObject.MethodButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.MethodButton.BackgroundTransparency = 1.000
 	GUIObject.MethodButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.MethodButton.Font = Enum.Font.Code
+	GUIObject.MethodButton.Font = Enum.Font.GothamMedium
 	GUIObject.MethodButton.Text = "Method: 1"
 	GUIObject.MethodButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.MethodButton.TextScaled = true
@@ -21960,7 +22592,7 @@ function RoClothes(Player)
 
 	GUIObject.UIAspectRatioConstraint_9.Parent = GUIObject.Catalog_2
 
-	GUIObject.UICorner_34.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_34.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_34.Parent = GUIObject.Catalog_2
 
 	GUIObject.CatalogButton.Name = "CatalogButton"
@@ -21968,7 +22600,7 @@ function RoClothes(Player)
 	GUIObject.CatalogButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.CatalogButton.BackgroundTransparency = 1.000
 	GUIObject.CatalogButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.CatalogButton.Font = Enum.Font.Code
+	GUIObject.CatalogButton.Font = Enum.Font.GothamMedium
 	GUIObject.CatalogButton.Text = "Catalog"
 	GUIObject.CatalogButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.CatalogButton.TextScaled = true
@@ -21976,7 +22608,7 @@ function RoClothes(Player)
 	GUIObject.CatalogButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.CatalogButton.TextWrapped = true
 
-	GUIObject.UIGradient_33.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_33.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(38, 32, 60)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 25, 48))}
 	GUIObject.UIGradient_33.Rotation = -90
 	GUIObject.UIGradient_33.Parent = GUIObject.Catalog_2
 
@@ -21989,7 +22621,7 @@ function RoClothes(Player)
 
 	GUIObject.UIAspectRatioConstraint_8.Parent = GUIObject.Edit_2
 
-	GUIObject.UICorner_33.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_33.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_33.Parent = GUIObject.Edit_2
 
 	GUIObject.EditButton.Name = "EditButton"
@@ -21997,7 +22629,7 @@ function RoClothes(Player)
 	GUIObject.EditButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.EditButton.BackgroundTransparency = 1.000
 	GUIObject.EditButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.EditButton.Font = Enum.Font.Code
+	GUIObject.EditButton.Font = Enum.Font.GothamMedium
 	GUIObject.EditButton.Text = "Edit"
 	GUIObject.EditButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.EditButton.TextScaled = true
@@ -22005,7 +22637,7 @@ function RoClothes(Player)
 	GUIObject.EditButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.EditButton.TextWrapped = true
 
-	GUIObject.UIGradient_32.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_32.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(38, 32, 60)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 25, 48))}
 	GUIObject.UIGradient_32.Rotation = -90
 	GUIObject.UIGradient_32.Parent = GUIObject.Edit_2
 
@@ -22024,7 +22656,7 @@ function RoClothes(Player)
 	GUIObject.UsernameFrame.Position = UDim2.new(0.5, 0, 0.0250000004, 0)
 	GUIObject.UsernameFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UICorner_27.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_27.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_27.Parent = GUIObject.UsernameFrame
 
 	GUIObject.UsernameTextbox.Name = "UsernameTextbox"
@@ -22033,7 +22665,7 @@ function RoClothes(Player)
 	GUIObject.UsernameTextbox.BackgroundTransparency = 1.000
 	GUIObject.UsernameTextbox.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.UsernameTextbox.ClearTextOnFocus = false
-	GUIObject.UsernameTextbox.Font = Enum.Font.Code
+	GUIObject.UsernameTextbox.Font = Enum.Font.GothamMedium
 	GUIObject.UsernameTextbox.PlaceholderText = "Username"
 	GUIObject.UsernameTextbox.Text = ""
 	GUIObject.UsernameTextbox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22042,7 +22674,7 @@ function RoClothes(Player)
 	GUIObject.UsernameTextbox.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.UsernameTextbox.TextWrapped = true
 
-	GUIObject.UIGradient_26.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(22, 45, 94)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(52, 80, 145))}
+	GUIObject.UIGradient_26.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(32, 52, 95)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(32, 52, 95))}
 	GUIObject.UIGradient_26.Rotation = -90
 	GUIObject.UIGradient_26.Parent = GUIObject.UsernameFrame
 
@@ -22054,7 +22686,7 @@ function RoClothes(Player)
 	GUIObject.AccessoryFrame.Position = UDim2.new(0.5, 0, 0.109999999, 0)
 	GUIObject.AccessoryFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UICorner_28.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_28.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_28.Parent = GUIObject.AccessoryFrame
 
 	GUIObject.AccessoryTextbox.Name = "AccessoryTextbox"
@@ -22063,7 +22695,7 @@ function RoClothes(Player)
 	GUIObject.AccessoryTextbox.BackgroundTransparency = 1.000
 	GUIObject.AccessoryTextbox.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.AccessoryTextbox.ClearTextOnFocus = false
-	GUIObject.AccessoryTextbox.Font = Enum.Font.Code
+	GUIObject.AccessoryTextbox.Font = Enum.Font.GothamMedium
 	GUIObject.AccessoryTextbox.PlaceholderText = "Accessory Id"
 	GUIObject.AccessoryTextbox.Text = ""
 	GUIObject.AccessoryTextbox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22072,7 +22704,7 @@ function RoClothes(Player)
 	GUIObject.AccessoryTextbox.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.AccessoryTextbox.TextWrapped = true
 
-	GUIObject.UIGradient_27.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(22, 45, 94)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(52, 80, 145))}
+	GUIObject.UIGradient_27.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(32, 52, 95)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(32, 52, 95))}
 	GUIObject.UIGradient_27.Rotation = -90
 	GUIObject.UIGradient_27.Parent = GUIObject.AccessoryFrame
 
@@ -22084,7 +22716,7 @@ function RoClothes(Player)
 	GUIObject.ShirtFrame.Position = UDim2.new(0.5, 0, 0.194999993, 0)
 	GUIObject.ShirtFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UICorner_29.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_29.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_29.Parent = GUIObject.ShirtFrame
 
 	GUIObject.ShirtTextbox.Name = "ShirtTextbox"
@@ -22093,7 +22725,7 @@ function RoClothes(Player)
 	GUIObject.ShirtTextbox.BackgroundTransparency = 1.000
 	GUIObject.ShirtTextbox.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.ShirtTextbox.ClearTextOnFocus = false
-	GUIObject.ShirtTextbox.Font = Enum.Font.Code
+	GUIObject.ShirtTextbox.Font = Enum.Font.GothamMedium
 	GUIObject.ShirtTextbox.PlaceholderText = "Shirt Id"
 	GUIObject.ShirtTextbox.Text = ""
 	GUIObject.ShirtTextbox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22102,7 +22734,7 @@ function RoClothes(Player)
 	GUIObject.ShirtTextbox.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ShirtTextbox.TextWrapped = true
 
-	GUIObject.UIGradient_28.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(22, 45, 94)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(52, 80, 145))}
+	GUIObject.UIGradient_28.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(32, 52, 95)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(32, 52, 95))}
 	GUIObject.UIGradient_28.Rotation = -90
 	GUIObject.UIGradient_28.Parent = GUIObject.ShirtFrame
 
@@ -22114,7 +22746,7 @@ function RoClothes(Player)
 	GUIObject.PantsFrame.Position = UDim2.new(0.5, 0, 0.280000001, 0)
 	GUIObject.PantsFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UICorner_30.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_30.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_30.Parent = GUIObject.PantsFrame
 
 	GUIObject.PantsTextbox.Name = "PantsTextbox"
@@ -22123,7 +22755,7 @@ function RoClothes(Player)
 	GUIObject.PantsTextbox.BackgroundTransparency = 1.000
 	GUIObject.PantsTextbox.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.PantsTextbox.ClearTextOnFocus = false
-	GUIObject.PantsTextbox.Font = Enum.Font.Code
+	GUIObject.PantsTextbox.Font = Enum.Font.GothamMedium
 	GUIObject.PantsTextbox.PlaceholderText = "Pants Id"
 	GUIObject.PantsTextbox.Text = ""
 	GUIObject.PantsTextbox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22132,7 +22764,7 @@ function RoClothes(Player)
 	GUIObject.PantsTextbox.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.PantsTextbox.TextWrapped = true
 
-	GUIObject.UIGradient_29.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(22, 45, 94)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(52, 80, 145))}
+	GUIObject.UIGradient_29.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(32, 52, 95)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(32, 52, 95))}
 	GUIObject.UIGradient_29.Rotation = -90
 	GUIObject.UIGradient_29.Parent = GUIObject.PantsFrame
 
@@ -22144,7 +22776,7 @@ function RoClothes(Player)
 	GUIObject.ShirtGraphicFrame.Position = UDim2.new(0.5, 0, 0.36500001, 0)
 	GUIObject.ShirtGraphicFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UICorner_31.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_31.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_31.Parent = GUIObject.ShirtGraphicFrame
 
 	GUIObject.ShirtGraphicTextbox.Name = "ShirtGraphicTextbox"
@@ -22153,7 +22785,7 @@ function RoClothes(Player)
 	GUIObject.ShirtGraphicTextbox.BackgroundTransparency = 1.000
 	GUIObject.ShirtGraphicTextbox.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.ShirtGraphicTextbox.ClearTextOnFocus = false
-	GUIObject.ShirtGraphicTextbox.Font = Enum.Font.Code
+	GUIObject.ShirtGraphicTextbox.Font = Enum.Font.GothamMedium
 	GUIObject.ShirtGraphicTextbox.PlaceholderText = "Shirt Graphic Id"
 	GUIObject.ShirtGraphicTextbox.Text = ""
 	GUIObject.ShirtGraphicTextbox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22162,7 +22794,7 @@ function RoClothes(Player)
 	GUIObject.ShirtGraphicTextbox.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ShirtGraphicTextbox.TextWrapped = true
 
-	GUIObject.UIGradient_30.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(22, 45, 94)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(52, 80, 145))}
+	GUIObject.UIGradient_30.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(32, 52, 95)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(32, 52, 95))}
 	GUIObject.UIGradient_30.Rotation = -90
 	GUIObject.UIGradient_30.Parent = GUIObject.ShirtGraphicFrame
 
@@ -22181,7 +22813,7 @@ function RoClothes(Player)
 	GUIObject.MeshNameFrame.Position = UDim2.new(0.5, 0, 0.0250000004, 0)
 	GUIObject.MeshNameFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UICorner_32.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_32.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_32.Parent = GUIObject.MeshNameFrame
 
 	GUIObject.MeshNameTextbox.Name = "MeshNameTextbox"
@@ -22190,7 +22822,7 @@ function RoClothes(Player)
 	GUIObject.MeshNameTextbox.BackgroundTransparency = 1.000
 	GUIObject.MeshNameTextbox.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.MeshNameTextbox.ClearTextOnFocus = false
-	GUIObject.MeshNameTextbox.Font = Enum.Font.Code
+	GUIObject.MeshNameTextbox.Font = Enum.Font.GothamMedium
 	GUIObject.MeshNameTextbox.PlaceholderText = "Mesh Name"
 	GUIObject.MeshNameTextbox.Text = ""
 	GUIObject.MeshNameTextbox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22199,7 +22831,7 @@ function RoClothes(Player)
 	GUIObject.MeshNameTextbox.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.MeshNameTextbox.TextWrapped = true
 
-	GUIObject.UIGradient_31.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(76, 6, 94)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(126, 17, 145))}
+	GUIObject.UIGradient_31.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(65, 22, 95)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(65, 22, 95))}
 	GUIObject.UIGradient_31.Rotation = -90
 	GUIObject.UIGradient_31.Parent = GUIObject.MeshNameFrame
 
@@ -22231,7 +22863,7 @@ function RoClothes(Player)
 	GUIObject.EditNote.BackgroundTransparency = 1.000
 	GUIObject.EditNote.Position = UDim2.new(0.50000006, 0, 0.110409796, 0)
 	GUIObject.EditNote.Size = UDim2.new(0.890999973, 0, 0.1, 0)
-	GUIObject.EditNote.Font = Enum.Font.Code
+	GUIObject.EditNote.Font = Enum.Font.GothamMedium
 	GUIObject.EditNote.Text = "Self = Change Default Mesh Part\\n--------------------------------------\\nPlayer Name = Change Personal Mesh Part"
 	GUIObject.EditNote.TextColor3 = Color3.fromRGB(0, 0, 0)
 	GUIObject.EditNote.TextScaled = true
@@ -22268,7 +22900,7 @@ function RoClothes(Player)
 	GUIObject.PreviewButton.BackgroundTransparency = 1.000
 	GUIObject.PreviewButton.Position = UDim2.new(0, 0, 1.00000012, 0)
 	GUIObject.PreviewButton.Size = UDim2.new(1, 0, 0.153530627, 0)
-	GUIObject.PreviewButton.Font = Enum.Font.Code
+	GUIObject.PreviewButton.Font = Enum.Font.GothamMedium
 	GUIObject.PreviewButton.Text = "Preview"
 	GUIObject.PreviewButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.PreviewButton.TextScaled = true
@@ -22284,11 +22916,11 @@ function RoClothes(Player)
 	GUIObject.ClickExecuteFrame.Position = UDim2.new(0.5, 0, 0.629999995, 0)
 	GUIObject.ClickExecuteFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradientCE.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradientCE.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(140, 18, 18)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(140, 18, 18))}
 	GUIObject.UIGradientCE.Rotation = -90
 	GUIObject.UIGradientCE.Parent = GUIObject.ClickExecuteFrame
 
-	GUIObject.UICornerCE.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICornerCE.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICornerCE.Parent = GUIObject.ClickExecuteFrame
 
 	GUIObject.ClickExecuteButton.Name = "ClickExecuteButton"
@@ -22298,12 +22930,12 @@ function RoClothes(Player)
 	GUIObject.ClickExecuteButton.BorderSizePixel = 0
 	GUIObject.ClickExecuteButton.LayoutOrder = 1
 	GUIObject.ClickExecuteButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.ClickExecuteButton.Font = Enum.Font.Code
+	GUIObject.ClickExecuteButton.Font = Enum.Font.GothamMedium
 	GUIObject.ClickExecuteButton.Text = "Click Execute"
 	GUIObject.ClickExecuteButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ClickExecuteButton.TextScaled = true
 	GUIObject.ClickExecuteButton.TextSize = 14.000
-	GUIObject.ClickExecuteButton.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+	GUIObject.ClickExecuteButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 	GUIObject.ClickExecuteButton.TextStrokeTransparency = 0.000
 	GUIObject.ClickExecuteButton.TextWrapped = true
 
@@ -22315,7 +22947,7 @@ function RoClothes(Player)
 	GUIObject.PositionPhysicsMultiplyFrame.Position = UDim2.new(0.5, 0, 0.714999974, 0)
 	GUIObject.PositionPhysicsMultiplyFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UICornerPPM.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICornerPPM.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICornerPPM.Parent = GUIObject.PositionPhysicsMultiplyFrame
 
 	GUIObject.PositionPhysicsMultiplyText.Name = "PositionPhysicsMultiplyText"
@@ -22323,7 +22955,7 @@ function RoClothes(Player)
 	GUIObject.PositionPhysicsMultiplyText.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.PositionPhysicsMultiplyText.BackgroundTransparency = 1.000
 	GUIObject.PositionPhysicsMultiplyText.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.PositionPhysicsMultiplyText.Font = Enum.Font.Code
+	GUIObject.PositionPhysicsMultiplyText.Font = Enum.Font.GothamMedium
 	GUIObject.PositionPhysicsMultiplyText.PlaceholderText = "Position Physics Multiply"
 	GUIObject.PositionPhysicsMultiplyText.Text = "1"
 	GUIObject.PositionPhysicsMultiplyText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22331,7 +22963,7 @@ function RoClothes(Player)
 	GUIObject.PositionPhysicsMultiplyText.TextSize = 14.000
 	GUIObject.PositionPhysicsMultiplyText.TextWrapped = true
 
-	GUIObject.UIGradientPPM.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 67))}
+	GUIObject.UIGradientPPM.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 80, 55)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 80, 55))}
 	GUIObject.UIGradientPPM.Rotation = -90
 	GUIObject.UIGradientPPM.Parent = GUIObject.PositionPhysicsMultiplyFrame
 
@@ -22343,7 +22975,7 @@ function RoClothes(Player)
 	GUIObject.RotationPhysicsMultiplyFrame.Position = UDim2.new(0.5, 0, 0.800000012, 0)
 	GUIObject.RotationPhysicsMultiplyFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UICornerRPM.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICornerRPM.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICornerRPM.Parent = GUIObject.RotationPhysicsMultiplyFrame
 
 	GUIObject.RotationPhysicsMultiplyText.Name = "RotationPhysicsMultiplyText"
@@ -22351,7 +22983,7 @@ function RoClothes(Player)
 	GUIObject.RotationPhysicsMultiplyText.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.RotationPhysicsMultiplyText.BackgroundTransparency = 1.000
 	GUIObject.RotationPhysicsMultiplyText.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.RotationPhysicsMultiplyText.Font = Enum.Font.Code
+	GUIObject.RotationPhysicsMultiplyText.Font = Enum.Font.GothamMedium
 	GUIObject.RotationPhysicsMultiplyText.PlaceholderText = "Rotation Physics Multiply"
 	GUIObject.RotationPhysicsMultiplyText.Text = "4"
 	GUIObject.RotationPhysicsMultiplyText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22359,7 +22991,7 @@ function RoClothes(Player)
 	GUIObject.RotationPhysicsMultiplyText.TextSize = 14.000
 	GUIObject.RotationPhysicsMultiplyText.TextWrapped = true
 
-	GUIObject.UIGradientRPM.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 67))}
+	GUIObject.UIGradientRPM.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 80, 55)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 80, 55))}
 	GUIObject.UIGradientRPM.Rotation = -90
 	GUIObject.UIGradientRPM.Parent = GUIObject.RotationPhysicsMultiplyFrame
 
@@ -22381,7 +23013,7 @@ function RoClothes(Player)
 	GUIObject.SkinToneFrame.Position = UDim2.new(0.271, 0, 0.88499999, 0)
 	GUIObject.SkinToneFrame.Size = UDim2.new(0.425, 0, 0.0646399707, 0)
 
-	GUIObject.STUICorner.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.STUICorner.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.STUICorner.Parent = GUIObject.SkinToneFrame
 
 	GUIObject.SkinToneText.Name = "SkinToneText"
@@ -22389,7 +23021,7 @@ function RoClothes(Player)
 	GUIObject.SkinToneText.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.SkinToneText.BackgroundTransparency = 1.000
 	GUIObject.SkinToneText.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.SkinToneText.Font = Enum.Font.Code
+	GUIObject.SkinToneText.Font = Enum.Font.GothamMedium
 	GUIObject.SkinToneText.PlaceholderText = "Skin Tone [RGB] (Empty=Disable)"
 	GUIObject.SkinToneText.Text = ""
 	GUIObject.SkinToneText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22397,7 +23029,7 @@ function RoClothes(Player)
 	GUIObject.SkinToneText.TextSize = 14.000
 	GUIObject.SkinToneText.TextWrapped = true
 
-	GUIObject.STUIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 67))}
+	GUIObject.STUIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 80, 55)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 80, 55))}
 	GUIObject.STUIGradient.Rotation = -90
 	GUIObject.STUIGradient.Parent = GUIObject.SkinToneFrame
 
@@ -22409,7 +23041,7 @@ function RoClothes(Player)
 	GUIObject.NippleColorFrame.Position = UDim2.new(0.731, 0, 0.88499999, 0)
 	GUIObject.NippleColorFrame.Size = UDim2.new(0.425, 0, 0.0646399707, 0)
 
-	GUIObject.NTUICorner.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.NTUICorner.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.NTUICorner.Parent = GUIObject.NippleColorFrame
 
 	GUIObject.NippleColorText.Name = "NippleColorText"
@@ -22417,7 +23049,7 @@ function RoClothes(Player)
 	GUIObject.NippleColorText.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.NippleColorText.BackgroundTransparency = 1.000
 	GUIObject.NippleColorText.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.NippleColorText.Font = Enum.Font.Code
+	GUIObject.NippleColorText.Font = Enum.Font.GothamMedium
 	GUIObject.NippleColorText.PlaceholderText = "Nipple Color [RGB] (Empty=Disable)"
 	GUIObject.NippleColorText.Text = ""
 	GUIObject.NippleColorText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22425,7 +23057,7 @@ function RoClothes(Player)
 	GUIObject.NippleColorText.TextSize = 14.000
 	GUIObject.NippleColorText.TextWrapped = true
 
-	GUIObject.NTUIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 67))}
+	GUIObject.NTUIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 80, 55)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 80, 55))}
 	GUIObject.NTUIGradient.Rotation = -90
 	GUIObject.NTUIGradient.Parent = GUIObject.NippleColorFrame
 
@@ -22444,7 +23076,7 @@ function RoClothes(Player)
 	GUIObject.BreastsScaleFrame.Position = UDim2.new(0.5, 0, 0.0250000004, 0)
 	GUIObject.BreastsScaleFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.BS1UICorner.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.BS1UICorner.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.BS1UICorner.Parent = GUIObject.BreastsScaleFrame
 
 	GUIObject.BreastsScaleText.Name = "BreastsScaleText"
@@ -22453,7 +23085,7 @@ function RoClothes(Player)
 	GUIObject.BreastsScaleText.BackgroundTransparency = 1.000
 	GUIObject.BreastsScaleText.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.BreastsScaleText.ClearTextOnFocus = false
-	GUIObject.BreastsScaleText.Font = Enum.Font.Code
+	GUIObject.BreastsScaleText.Font = Enum.Font.GothamMedium
 	GUIObject.BreastsScaleText.PlaceholderText = "Breasts Scale"
 	GUIObject.BreastsScaleText.Text = "1"
 	GUIObject.BreastsScaleText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22462,7 +23094,7 @@ function RoClothes(Player)
 	GUIObject.BreastsScaleText.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.BreastsScaleText.TextWrapped = true
 
-	GUIObject.BS1UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 67))}
+	GUIObject.BS1UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 80, 55)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 80, 55))}
 	GUIObject.BS1UIGradient.Rotation = -90
 	GUIObject.BS1UIGradient.Parent = GUIObject.BreastsScaleFrame
 
@@ -22474,10 +23106,10 @@ function RoClothes(Player)
 	GUIObject.ButtsScaleFrame.Position = UDim2.new(0.5, 0, 0.109999999, 0)
 	GUIObject.ButtsScaleFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.BS2UICorner.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.BS2UICorner.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.BS2UICorner.Parent = GUIObject.ButtsScaleFrame
 
-	GUIObject.BS2UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 67))}
+	GUIObject.BS2UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 80, 55)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 80, 55))}
 	GUIObject.BS2UIGradient.Rotation = -90
 	GUIObject.BS2UIGradient.Parent = GUIObject.ButtsScaleFrame
 
@@ -22487,7 +23119,7 @@ function RoClothes(Player)
 	GUIObject.ButtsScaleText.BackgroundTransparency = 1.000
 	GUIObject.ButtsScaleText.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.ButtsScaleText.ClearTextOnFocus = false
-	GUIObject.ButtsScaleText.Font = Enum.Font.Code
+	GUIObject.ButtsScaleText.Font = Enum.Font.GothamMedium
 	GUIObject.ButtsScaleText.PlaceholderText = "Butts Scale"
 	GUIObject.ButtsScaleText.Text = "1"
 	GUIObject.ButtsScaleText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22503,10 +23135,10 @@ function RoClothes(Player)
 	GUIObject.LegsScaleFrame.Position = UDim2.new(0.5, 0, 0.195, 0)
 	GUIObject.LegsScaleFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.BS3UICorner.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.BS3UICorner.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.BS3UICorner.Parent = GUIObject.LegsScaleFrame
 
-	GUIObject.BS3UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 67))}
+	GUIObject.BS3UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 80, 55)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 80, 55))}
 	GUIObject.BS3UIGradient.Rotation = -90
 	GUIObject.BS3UIGradient.Parent = GUIObject.LegsScaleFrame
 
@@ -22516,7 +23148,7 @@ function RoClothes(Player)
 	GUIObject.LegsScaleText.BackgroundTransparency = 1.000
 	GUIObject.LegsScaleText.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.LegsScaleText.ClearTextOnFocus = false
-	GUIObject.LegsScaleText.Font = Enum.Font.Code
+	GUIObject.LegsScaleText.Font = Enum.Font.GothamMedium
 	GUIObject.LegsScaleText.PlaceholderText = "Legs Scale"
 	GUIObject.LegsScaleText.Text = "1"
 	GUIObject.LegsScaleText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22532,7 +23164,7 @@ function RoClothes(Player)
 	GUIObject.OutfitIdFrame.Position = UDim2.new(0.5, 0, 0.449999988, 0)
 	GUIObject.OutfitIdFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UICornerUI.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICornerUI.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICornerUI.Parent = GUIObject.OutfitIdFrame
 
 	GUIObject.OutfitIdTextbox.Name = "OutfitIdTextbox"
@@ -22541,7 +23173,7 @@ function RoClothes(Player)
 	GUIObject.OutfitIdTextbox.BackgroundTransparency = 1.000
 	GUIObject.OutfitIdTextbox.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.OutfitIdTextbox.ClearTextOnFocus = false
-	GUIObject.OutfitIdTextbox.Font = Enum.Font.Code
+	GUIObject.OutfitIdTextbox.Font = Enum.Font.GothamMedium
 	GUIObject.OutfitIdTextbox.PlaceholderText = "Outfit Id"
 	GUIObject.OutfitIdTextbox.Text = ""
 	GUIObject.OutfitIdTextbox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22550,7 +23182,7 @@ function RoClothes(Player)
 	GUIObject.OutfitIdTextbox.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.OutfitIdTextbox.TextWrapped = true
 
-	GUIObject.UIGradientUI.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(22, 45, 94)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(52, 80, 145))}
+	GUIObject.UIGradientUI.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(32, 52, 95)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(32, 52, 95))}
 	GUIObject.UIGradientUI.Rotation = -90
 	GUIObject.UIGradientUI.Parent = GUIObject.OutfitIdFrame
 
@@ -22562,11 +23194,11 @@ function RoClothes(Player)
 	GUIObject.TorsoTypeFrame.Position = UDim2.new(0.5, 0, 0.28, 0)
 	GUIObject.TorsoTypeFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A1.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_A1.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(30, 72, 155)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(24, 58, 125))}
 	GUIObject.UIGradient_A1.Rotation = -90
 	GUIObject.UIGradient_A1.Parent = GUIObject.TorsoTypeFrame
 
-	GUIObject.UICorner_A1.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A1.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A1.Parent = GUIObject.TorsoTypeFrame
 
 	GUIObject.TorsoTypeButton.Name = "TorsoTypeButton"
@@ -22575,7 +23207,7 @@ function RoClothes(Player)
 	GUIObject.TorsoTypeButton.BackgroundTransparency = 1.000
 	GUIObject.TorsoTypeButton.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.TorsoTypeButton.ZIndex = 2
-	GUIObject.TorsoTypeButton.Font = Enum.Font.Code
+	GUIObject.TorsoTypeButton.Font = Enum.Font.GothamMedium
 	GUIObject.TorsoTypeButton.Text = "Torso Type: 1"
 	GUIObject.TorsoTypeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.TorsoTypeButton.TextScaled = true
@@ -22590,11 +23222,11 @@ function RoClothes(Player)
 	GUIObject.LegsTypeFrame.Position = UDim2.new(0.5, 0, 0.45, 0)
 	GUIObject.LegsTypeFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A2.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_A2.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(30, 72, 155)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(24, 58, 125))}
 	GUIObject.UIGradient_A2.Rotation = -90
 	GUIObject.UIGradient_A2.Parent = GUIObject.LegsTypeFrame
 
-	GUIObject.UICorner_A2.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A2.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A2.Parent = GUIObject.LegsTypeFrame
 
 	GUIObject.LegsTypeButton.Name = "LegsTypeButton"
@@ -22603,7 +23235,7 @@ function RoClothes(Player)
 	GUIObject.LegsTypeButton.BackgroundTransparency = 1.000
 	GUIObject.LegsTypeButton.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.LegsTypeButton.ZIndex = 2
-	GUIObject.LegsTypeButton.Font = Enum.Font.Code
+	GUIObject.LegsTypeButton.Font = Enum.Font.GothamMedium
 	GUIObject.LegsTypeButton.Text = "Legs Type: 1"
 	GUIObject.LegsTypeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.LegsTypeButton.TextScaled = true
@@ -22618,11 +23250,11 @@ function RoClothes(Player)
 	GUIObject.ArmTypeFrame.Position = UDim2.new(0.5, 0, 0.365, 0)
 	GUIObject.ArmTypeFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A11.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_A11.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(30, 72, 155)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(24, 58, 125))}
 	GUIObject.UIGradient_A11.Rotation = -90
 	GUIObject.UIGradient_A11.Parent = GUIObject.ArmTypeFrame
 
-	GUIObject.UICorner_A11.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A11.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A11.Parent = GUIObject.ArmTypeFrame
 
 	GUIObject.ArmTypeButton.Name = "ArmTypeButton"
@@ -22631,7 +23263,7 @@ function RoClothes(Player)
 	GUIObject.ArmTypeButton.BackgroundTransparency = 1.000
 	GUIObject.ArmTypeButton.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.ArmTypeButton.ZIndex = 2
-	GUIObject.ArmTypeButton.Font = Enum.Font.Code
+	GUIObject.ArmTypeButton.Font = Enum.Font.GothamMedium
 	GUIObject.ArmTypeButton.Text = "Arm Type: 1"
 	GUIObject.ArmTypeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.ArmTypeButton.TextScaled = true
@@ -22646,11 +23278,11 @@ function RoClothes(Player)
 	GUIObject.ButtTypeFrame.Position = UDim2.new(0.5, 0, 0.535, 0)
 	GUIObject.ButtTypeFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A16.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_A16.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(30, 72, 155)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(24, 58, 125))}
 	GUIObject.UIGradient_A16.Rotation = -90
 	GUIObject.UIGradient_A16.Parent = GUIObject.ButtTypeFrame
 
-	GUIObject.UICorner_A16.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A16.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A16.Parent = GUIObject.ButtTypeFrame
 
 	GUIObject.ButtTypeButton.Name = "ButtTypeButton"
@@ -22659,9 +23291,246 @@ function RoClothes(Player)
 	GUIObject.ButtTypeButton.BackgroundTransparency = 1.000
 	GUIObject.ButtTypeButton.Size = UDim2.new(1, 0, 1, 0)
 	GUIObject.ButtTypeButton.ZIndex = 2
-	GUIObject.ButtTypeButton.Font = Enum.Font.Code
+	GUIObject.ButtTypeButton.Font = Enum.Font.GothamMedium
 	GUIObject.ButtTypeButton.Text = "Butt Type: 1"
 	GUIObject.ButtTypeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	GUIObject.ButtTypeButton.TextScaled = true
+	GUIObject.ButtTypeButton.TextSize = 14.000
+	GUIObject.ButtTypeButton.TextWrapped = true
+
+	-- V4.3.1: Physics Tuning GUI Initializer (drag-slider version).
+	-- Previously these were bare TextBoxes with no FocusLost handler — they looked like
+	-- editable fields but never actually fed back into the physics system. Now they're
+	-- proper click-and-drag sliders with a live fill bar and a read-only value label.
+	local function SetupPhysicsFrame(Frame, Corner, Gradient, TextBox, Position, Placeholder)
+		Frame.Name = Placeholder:gsub(" ", "") .. "Frame"
+		Frame.Parent = GUIObject.Menu3
+		Frame.AnchorPoint = Vector2.new(0.5, 0)
+		Frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		Frame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+		Frame.Position = UDim2.new(0.5, 0, Position, 0)
+		Frame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
+		Frame.ClipsDescendants = true  -- V4.3.1: keep the fill bar inside the rounded corners
+
+		Corner.CornerRadius = UDim.new(0.12, 0)
+		Corner.Parent = Frame
+
+		Gradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(48, 18, 28)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(48, 18, 28))}
+		Gradient.Rotation = -90
+		Gradient.Parent = Frame
+
+		-- V4.3.1: Fill bar (shows current slider value as a horizontal progress fill)
+		local Fill = Instance.new("Frame")
+		Fill.Name = "SliderFill"
+		Fill.Parent = Frame
+		Fill.AnchorPoint = Vector2.new(0, 0.5)
+		Fill.Position = UDim2.new(0, 0, 0.5, 0)
+		Fill.Size = UDim2.new(0, 0, 1, 0)
+		Fill.BackgroundColor3 = Color3.fromRGB(130, 45, 70)
+		Fill.BorderSizePixel = 0
+		Fill.ZIndex = 1
+
+		TextBox.Name = Placeholder:gsub(" ", "") .. "Text"
+		TextBox.Parent = Frame
+		TextBox.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+		TextBox.BackgroundTransparency = 1.000
+		TextBox.Size = UDim2.new(1, 0, 1, 0)
+		TextBox.ClearTextOnFocus = false
+		TextBox.TextEditable = false  -- V4.3.1: drag-only; text is display-only
+		TextBox.Font = Enum.Font.GothamMedium
+		TextBox.PlaceholderText = Placeholder
+		TextBox.Text = Placeholder
+		TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+		TextBox.TextScaled = true
+		TextBox.TextSize = 14.000
+		TextBox.TextWrapped = true
+		TextBox.ZIndex = 2
+
+		-- V4.3.2 fix: The TextBox covers the whole frame and absorbs input events before
+		-- the frame's InputBegan can fire, so dragging did nothing. An invisible TextButton
+		-- overlay sits on top (ZIndex 3) and actually receives input. Active=true is the
+		-- default on TextButton, so no extra setup needed.
+		local Overlay = Instance.new("TextButton")
+		Overlay.Name = "SliderOverlay"
+		Overlay.Parent = Frame
+		Overlay.BackgroundTransparency = 1
+		Overlay.Size = UDim2.new(1, 0, 1, 0)
+		Overlay.Text = ""
+		Overlay.AutoButtonColor = false
+		Overlay.Modal = false
+		Overlay.ZIndex = 3
+
+		return Fill, Overlay
+	end
+
+	local BreastsStiffnessFill, BreastsStiffnessOverlay = SetupPhysicsFrame(GUIObject.BreastsStiffnessFrame, GUIObject.BS_Stiff_UICorner, GUIObject.BS_Stiff_UIGradient, GUIObject.BreastsStiffnessText, 0.62, "Breasts Stiffness")
+	local BreastsDampingFill,   BreastsDampingOverlay   = SetupPhysicsFrame(GUIObject.BreastsDampingFrame,   GUIObject.BS_Damp_UICorner,  GUIObject.BS_Damp_UIGradient,  GUIObject.BreastsDampingText,   0.705, "Breasts Damping")
+	local ButtsStiffnessFill,   ButtsStiffnessOverlay   = SetupPhysicsFrame(GUIObject.ButtsStiffnessFrame,   GUIObject.BT_Stiff_UICorner, GUIObject.BT_Stiff_UIGradient, GUIObject.ButtsStiffnessText,   0.79,  "Butts Stiffness")
+	local ButtsDampingFill,     ButtsDampingOverlay     = SetupPhysicsFrame(GUIObject.ButtsDampingFrame,     GUIObject.BT_Damp_UICorner,  GUIObject.BT_Damp_UIGradient,  GUIObject.ButtsDampingText,     0.875, "Butts Damping")
+
+	-- V4.3.1: Live-apply helper. Walks every already-welded BodyPartPhysics entry for the
+	-- current player and updates the Spring's Speed/Damper in place. This is what makes
+	-- slider changes visible *immediately* without needing to Reset + Execute.
+	local BreastPartNames = {
+		["Left Breast"] = true,
+		["Right Breast"] = true,
+		["Breasts Shirt"] = true,
+		["Breasts Pants"] = true,
+	}
+	local ButtPartNames = {
+		["Left Butt"] = true,
+		["Right Butt"] = true,
+	}
+	local function ApplyPhysicsLive(category, speed, damper)
+		for PlayerName, DataList in pairs(PlayerData) do
+			if DataList.CurrentPartList and DataList.CurrentPartList.BodyPartPhysics then
+				for Part, Property in pairs(DataList.CurrentPartList.BodyPartPhysics) do
+					if Part and Part.Parent ~= nil and Property.Spring then
+						local match = false
+						if category == "Breasts" and BreastPartNames[Part.Name] then
+							match = true
+						elseif category == "Butts" and ButtPartNames[Part.Name] then
+							match = true
+						end
+						if match then
+							if speed ~= nil then Property.Spring.Speed = speed end
+							if damper ~= nil then Property.Spring.Damper = damper end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	-- V4.3.1: Turn a physics Frame into a click-and-drag slider.
+	-- V4.3.2: Now takes an explicit input-receiving overlay (TextButton) so clicks
+	--         actually reach the drag handler.
+	--   frame       — the track Frame (already styled by SetupPhysicsFrame)
+	--   overlay     — invisible TextButton covering the frame, receives input
+	--   textbox     — the read-only display label (TextBox with TextEditable=false)
+	--   fill        — the fill bar Frame (child of frame)
+	--   min, max    — allowed value range
+	--   decimals    — display precision (also used for snap granularity)
+	--   labelPrefix — e.g. "Breasts Stiffness"
+	--   getCurrent  — function() returning the current stored value
+	--   applyNew    — function(v) called on drag; should persist the new value
+	local function MakePhysicsSlider(frame, overlay, textbox, fill, min, max, decimals, labelPrefix, getCurrent, applyNew)
+		local function clampVal(v)
+			if v ~= v then return min end  -- NaN guard
+			if v < min then return min end
+			if v > max then return max end
+			return v
+		end
+
+		local fmt = "%." .. tostring(decimals) .. "f"
+		local snapMult = 10 ^ decimals
+
+		local function refresh()
+			local raw = getCurrent()
+			if type(raw) ~= "number" then raw = tonumber(raw) or min end
+			local v = clampVal(raw)
+			local alpha = (v - min) / (max - min)
+			fill.Size = UDim2.new(alpha, 0, 1, 0)
+			textbox.Text = labelPrefix .. ": " .. string.format(fmt, v)
+		end
+
+		local dragging = false
+		local function valueFromInput(input)
+			local frameW = frame.AbsoluteSize.X
+			if frameW <= 0 then return end
+			local alpha = math.clamp((input.Position.X - frame.AbsolutePosition.X) / frameW, 0, 1)
+			local v = min + (max - min) * alpha
+			v = math.floor(v * snapMult + 0.5) / snapMult
+			applyNew(v)
+			refresh()
+		end
+
+		-- V4.3.2: Listen on the overlay (ZIndex 3) instead of the frame. The overlay is a
+		-- TextButton so it fires InputBegan for MouseButton1/Touch reliably. We also wire
+		-- MouseButton1Down as a belt-and-suspenders fallback in case InputBegan is filtered
+		-- by a parent with Active=false somewhere in the chain.
+		local beganConn = overlay.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch then
+				dragging = true
+				valueFromInput(input)
+			end
+		end)
+		local mouseDownConn = overlay.MouseButton1Down:Connect(function(x, y)
+			dragging = true
+			-- Synthesize an input-like table for valueFromInput since MouseButton1Down
+			-- gives raw x/y instead of an InputObject.
+			valueFromInput({ Position = Vector3.new(x, y, 0) })
+		end)
+		local changedConn = UIS.InputChanged:Connect(function(input)
+			if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+				or input.UserInputType == Enum.UserInputType.Touch) then
+				valueFromInput(input)
+			end
+		end)
+		local endedConn = UIS.InputEnded:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch then
+				dragging = false
+			end
+		end)
+
+		if System and System.GlobalMaid then
+			System.GlobalMaid:Give(beganConn)
+			System.GlobalMaid:Give(mouseDownConn)
+			System.GlobalMaid:Give(changedConn)
+			System.GlobalMaid:Give(endedConn)
+		else
+			table.insert(AllConnect, beganConn)
+			table.insert(AllConnect, mouseDownConn)
+			table.insert(AllConnect, changedConn)
+			table.insert(AllConnect, endedConn)
+		end
+
+		table.insert(PhysicsSliderRefreshers, refresh)
+		refresh()
+		return refresh
+	end
+
+	-- Breasts Stiffness (Spring.Speed) — 0.5 to 30
+	MakePhysicsSlider(GUIObject.BreastsStiffnessFrame, BreastsStiffnessOverlay, GUIObject.BreastsStiffnessText, BreastsStiffnessFill,
+		0.5, 30, 1, "Breasts Stiffness",
+		function() return PlayerData[SelectPlayer] and PlayerData[SelectPlayer].BreastsStiffness or System.Physics.SpringConfigs.Breasts.Speed end,
+		function(v)
+			if PlayerData[SelectPlayer] then PlayerData[SelectPlayer].BreastsStiffness = v end
+			System.Physics.SpringConfigs.Breasts.Speed = v
+			ApplyPhysicsLive("Breasts", v, nil)
+		end)
+
+	-- Breasts Damping (Spring.Damper) — 0.01 to 1.5
+	MakePhysicsSlider(GUIObject.BreastsDampingFrame, BreastsDampingOverlay, GUIObject.BreastsDampingText, BreastsDampingFill,
+		0.01, 1.5, 3, "Breasts Damping",
+		function() return PlayerData[SelectPlayer] and PlayerData[SelectPlayer].BreastsDamping or System.Physics.SpringConfigs.Breasts.Damper end,
+		function(v)
+			if PlayerData[SelectPlayer] then PlayerData[SelectPlayer].BreastsDamping = v end
+			System.Physics.SpringConfigs.Breasts.Damper = v
+			ApplyPhysicsLive("Breasts", nil, v)
+		end)
+
+	-- Butts Stiffness (Spring.Speed) — 0.5 to 30
+	MakePhysicsSlider(GUIObject.ButtsStiffnessFrame, ButtsStiffnessOverlay, GUIObject.ButtsStiffnessText, ButtsStiffnessFill,
+		0.5, 30, 1, "Butts Stiffness",
+		function() return PlayerData[SelectPlayer] and PlayerData[SelectPlayer].ButtsStiffness or System.Physics.SpringConfigs.Buttocks.Speed end,
+		function(v)
+			if PlayerData[SelectPlayer] then PlayerData[SelectPlayer].ButtsStiffness = v end
+			System.Physics.SpringConfigs.Buttocks.Speed = v
+			ApplyPhysicsLive("Butts", v, nil)
+		end)
+
+	-- Butts Damping (Spring.Damper) — 0.01 to 1.5
+	MakePhysicsSlider(GUIObject.ButtsDampingFrame, ButtsDampingOverlay, GUIObject.ButtsDampingText, ButtsDampingFill,
+		0.01, 1.5, 3, "Butts Damping",
+		function() return PlayerData[SelectPlayer] and PlayerData[SelectPlayer].ButtsDamping or System.Physics.SpringConfigs.Buttocks.Damper end,
+		function(v)
+			if PlayerData[SelectPlayer] then PlayerData[SelectPlayer].ButtsDamping = v end
+			System.Physics.SpringConfigs.Buttocks.Damper = v
+			ApplyPhysicsLive("Butts", nil, v)
+		end)
 	GUIObject.ButtTypeButton.TextScaled = true
 	GUIObject.ButtTypeButton.TextSize = 14.000
 	GUIObject.ButtTypeButton.TextWrapped = true
@@ -22674,11 +23543,11 @@ function RoClothes(Player)
 	GUIObject.FPFrame.Position = UDim2.new(0.647907138, 0, 0.11, 0)
 	GUIObject.FPFrame.Size = UDim2.new(0.595495105, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A4.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 93))}
+	GUIObject.UIGradient_A4.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(15, 65, 65)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(15, 65, 65))}
 	GUIObject.UIGradient_A4.Rotation = -90
 	GUIObject.UIGradient_A4.Parent = GUIObject.FPFrame
 
-	GUIObject.UICorner_A4.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A4.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A4.Parent = GUIObject.FPFrame
 
 	GUIObject.FPExecute.Name = "FirstPerson"
@@ -22688,12 +23557,12 @@ function RoClothes(Player)
 	GUIObject.FPExecute.BorderSizePixel = 0
 	GUIObject.FPExecute.LayoutOrder = 1
 	GUIObject.FPExecute.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.FPExecute.Font = Enum.Font.Code
+	GUIObject.FPExecute.Font = Enum.Font.GothamMedium
 	GUIObject.FPExecute.Text = "First Person POV"
 	GUIObject.FPExecute.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.FPExecute.TextScaled = true
 	GUIObject.FPExecute.TextSize = 14.000
-	GUIObject.FPExecute.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+	GUIObject.FPExecute.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 	GUIObject.FPExecute.TextStrokeTransparency = 0.000
 	GUIObject.FPExecute.TextWrapped = true
 
@@ -22705,11 +23574,11 @@ function RoClothes(Player)
 	GUIObject.GravityFrame.Position = UDim2.new(0.647907138, 0, 0.195, 0)
 	GUIObject.GravityFrame.Size = UDim2.new(0.595495105, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A15.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 93))}
+	GUIObject.UIGradient_A15.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(15, 65, 65)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(15, 65, 65))}
 	GUIObject.UIGradient_A15.Rotation = -90
 	GUIObject.UIGradient_A15.Parent = GUIObject.GravityFrame
 
-	GUIObject.UICorner_A15.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A15.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A15.Parent = GUIObject.GravityFrame
 
 	GUIObject.GravityButton.Name = "GravityButton"
@@ -22719,12 +23588,12 @@ function RoClothes(Player)
 	GUIObject.GravityButton.BorderSizePixel = 0
 	GUIObject.GravityButton.LayoutOrder = 1
 	GUIObject.GravityButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.GravityButton.Font = Enum.Font.Code
+	GUIObject.GravityButton.Font = Enum.Font.GothamMedium
 	GUIObject.GravityButton.Text = "Physics Obey Gravity"
 	GUIObject.GravityButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.GravityButton.TextScaled = true
 	GUIObject.GravityButton.TextSize = 14.000
-	GUIObject.GravityButton.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+	GUIObject.GravityButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 	GUIObject.GravityButton.TextStrokeTransparency = 0.000
 	GUIObject.GravityButton.TextWrapped = true
 
@@ -22737,7 +23606,7 @@ function RoClothes(Player)
 
 	GUIObject.UIAspectRatioConstraint_A1.Parent = GUIObject.HP
 
-	GUIObject.UICorner_A3.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A3.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A3.Parent = GUIObject.HP
 
 	GUIObject.HPButton.Name = "HPButton"
@@ -22745,7 +23614,7 @@ function RoClothes(Player)
 	GUIObject.HPButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.HPButton.BackgroundTransparency = 1.000
 	GUIObject.HPButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.HPButton.Font = Enum.Font.Code
+	GUIObject.HPButton.Font = Enum.Font.GothamMedium
 	GUIObject.HPButton.Text = "HP"
 	GUIObject.HPButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.HPButton.TextScaled = true
@@ -22753,7 +23622,7 @@ function RoClothes(Player)
 	GUIObject.HPButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.HPButton.TextWrapped = true
 
-	GUIObject.UIGradient_A3.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_A3.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(38, 32, 60)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 25, 48))}
 	GUIObject.UIGradient_A3.Rotation = -90
 	GUIObject.UIGradient_A3.Parent = GUIObject.HP
 
@@ -22772,11 +23641,11 @@ function RoClothes(Player)
 	GUIObject.TopHPFrame.Position = UDim2.new(0.5, 0, 0.025, 0)
 	GUIObject.TopHPFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A5.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 67))}
+	GUIObject.UIGradient_A5.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 80, 55)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 80, 55))}
 	GUIObject.UIGradient_A5.Rotation = -90
 	GUIObject.UIGradient_A5.Parent = GUIObject.TopHPFrame
 
-	GUIObject.UICorner_A5.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A5.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A5.Parent = GUIObject.TopHPFrame
 
 	GUIObject.TopHPText.Name = "TopHPText"
@@ -22785,7 +23654,7 @@ function RoClothes(Player)
 	GUIObject.TopHPText.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.TopHPText.BackgroundTransparency = 1.000
 	GUIObject.TopHPText.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.TopHPText.Font = Enum.Font.Code
+	GUIObject.TopHPText.Font = Enum.Font.GothamMedium
 	GUIObject.TopHPText.PlaceholderText = "Shirt Health"
 	GUIObject.TopHPText.Text = ""
 	GUIObject.TopHPText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22801,11 +23670,11 @@ function RoClothes(Player)
 	GUIObject.TopClothesFrame.Position = UDim2.new(0.5, 0, 0.11, 0)
 	GUIObject.TopClothesFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A6.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 67))}
+	GUIObject.UIGradient_A6.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 80, 55)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 80, 55))}
 	GUIObject.UIGradient_A6.Rotation = -90
 	GUIObject.UIGradient_A6.Parent = GUIObject.TopClothesFrame
 
-	GUIObject.UICorner_A6.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A6.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A6.Parent = GUIObject.TopClothesFrame
 
 	GUIObject.TopClothesText.Name = "TopClothesText"
@@ -22814,7 +23683,7 @@ function RoClothes(Player)
 	GUIObject.TopClothesText.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.TopClothesText.BackgroundTransparency = 1.000
 	GUIObject.TopClothesText.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.TopClothesText.Font = Enum.Font.Code
+	GUIObject.TopClothesText.Font = Enum.Font.GothamMedium
 	GUIObject.TopClothesText.PlaceholderText = "Ripped Shirt Id"
 	GUIObject.TopClothesText.Text = ""
 	GUIObject.TopClothesText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22830,11 +23699,11 @@ function RoClothes(Player)
 	GUIObject.BottomHPFrame.Position = UDim2.new(0.5, 0, 0.195, 0)
 	GUIObject.BottomHPFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A7.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(38, 0, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(70, 0, 100))}
+	GUIObject.UIGradient_A7.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(52, 15, 78)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(52, 15, 78))}
 	GUIObject.UIGradient_A7.Rotation = -90
 	GUIObject.UIGradient_A7.Parent = GUIObject.BottomHPFrame
 
-	GUIObject.UICorner_A7.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A7.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A7.Parent = GUIObject.BottomHPFrame
 
 	GUIObject.BottomHPText.Name = "BottomHPText"
@@ -22843,7 +23712,7 @@ function RoClothes(Player)
 	GUIObject.BottomHPText.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.BottomHPText.BackgroundTransparency = 1.000
 	GUIObject.BottomHPText.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.BottomHPText.Font = Enum.Font.Code
+	GUIObject.BottomHPText.Font = Enum.Font.GothamMedium
 	GUIObject.BottomHPText.PlaceholderText = "Pants Health"
 	GUIObject.BottomHPText.Text = ""
 	GUIObject.BottomHPText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22859,11 +23728,11 @@ function RoClothes(Player)
 	GUIObject.BottomClothesFrame.Position = UDim2.new(0.5, 0, 0.28, 0)
 	GUIObject.BottomClothesFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A8.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(38, 0, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(70, 0, 100))}
+	GUIObject.UIGradient_A8.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(52, 15, 78)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(52, 15, 78))}
 	GUIObject.UIGradient_A8.Rotation = -90
 	GUIObject.UIGradient_A8.Parent = GUIObject.BottomClothesFrame
 
-	GUIObject.UICorner_A8.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A8.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A8.Parent = GUIObject.BottomClothesFrame
 
 	GUIObject.BottomClothesText.Name = "BottomClothesText"
@@ -22872,7 +23741,7 @@ function RoClothes(Player)
 	GUIObject.BottomClothesText.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.BottomClothesText.BackgroundTransparency = 1.000
 	GUIObject.BottomClothesText.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.BottomClothesText.Font = Enum.Font.Code
+	GUIObject.BottomClothesText.Font = Enum.Font.GothamMedium
 	GUIObject.BottomClothesText.PlaceholderText = "Ripped Pants Id"
 	GUIObject.BottomClothesText.Text = ""
 	GUIObject.BottomClothesText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22888,11 +23757,11 @@ function RoClothes(Player)
 	GUIObject.DamageFrame.Position = UDim2.new(0.5, 0, 0.365, 0)
 	GUIObject.DamageFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A9.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(54, 0, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 0, 0))}
+	GUIObject.UIGradient_A9.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(100, 15, 15)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 15, 15))}
 	GUIObject.UIGradient_A9.Rotation = -90
 	GUIObject.UIGradient_A9.Parent = GUIObject.DamageFrame
 
-	GUIObject.UICorner_A9.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A9.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A9.Parent = GUIObject.DamageFrame
 
 	GUIObject.DamageSFX.Name = "DamageSFX"
@@ -22901,7 +23770,7 @@ function RoClothes(Player)
 	GUIObject.DamageSFX.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.DamageSFX.BackgroundTransparency = 1.000
 	GUIObject.DamageSFX.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.DamageSFX.Font = Enum.Font.Code
+	GUIObject.DamageSFX.Font = Enum.Font.GothamMedium
 	GUIObject.DamageSFX.PlaceholderText = "Damage SFX Minimum (leave blank to disable)"
 	GUIObject.DamageSFX.Text = ""
 	GUIObject.DamageSFX.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22917,11 +23786,11 @@ function RoClothes(Player)
 	GUIObject.VolumeFrame.Position = UDim2.new(0.5, 0, 0.45, 0)
 	GUIObject.VolumeFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A10.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(54, 0, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 0, 0))}
+	GUIObject.UIGradient_A10.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(100, 15, 15)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 15, 15))}
 	GUIObject.UIGradient_A10.Rotation = -90
 	GUIObject.UIGradient_A10.Parent = GUIObject.VolumeFrame
 
-	GUIObject.UICorner_A10.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A10.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A10.Parent = GUIObject.VolumeFrame
 
 	GUIObject.VolumeText.Name = "VolumeText"
@@ -22930,7 +23799,7 @@ function RoClothes(Player)
 	GUIObject.VolumeText.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.VolumeText.BackgroundTransparency = 1.000
 	GUIObject.VolumeText.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.VolumeText.Font = Enum.Font.Code
+	GUIObject.VolumeText.Font = Enum.Font.GothamMedium
 	GUIObject.VolumeText.PlaceholderText = "Volume"
 	GUIObject.VolumeText.Text = "1"
 	GUIObject.VolumeText.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -22946,11 +23815,11 @@ function RoClothes(Player)
 	GUIObject.TPFrame.Position = UDim2.new(0.271, 0, 0.535, 0)
 	GUIObject.TPFrame.Size = UDim2.new(0.425, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A12.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(54, 36, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 70, 0))}
+	GUIObject.UIGradient_A12.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(85, 65, 14)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(85, 65, 14))}
 	GUIObject.UIGradient_A12.Rotation = -90
 	GUIObject.UIGradient_A12.Parent = GUIObject.TPFrame
 
-	GUIObject.UICorner_A12.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A12.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A12.Parent = GUIObject.TPFrame
 
 	GUIObject.TPToggle.Name = "TearToggle"
@@ -22960,12 +23829,12 @@ function RoClothes(Player)
 	GUIObject.TPToggle.BorderSizePixel = 0
 	GUIObject.TPToggle.LayoutOrder = 1
 	GUIObject.TPToggle.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.TPToggle.Font = Enum.Font.Code
+	GUIObject.TPToggle.Font = Enum.Font.GothamMedium
 	GUIObject.TPToggle.Text = "Tear Particles"
 	GUIObject.TPToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.TPToggle.TextScaled = true
 	GUIObject.TPToggle.TextSize = 14.000
-	GUIObject.TPToggle.TextStrokeColor3 = Color3.fromRGB(0, 255, 0)
+	GUIObject.TPToggle.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 	GUIObject.TPToggle.TextStrokeTransparency = 0.000
 	GUIObject.TPToggle.TextWrapped = true
 
@@ -22977,11 +23846,11 @@ function RoClothes(Player)
 	GUIObject.PHFrame.Position = UDim2.new(0.731, 0, 0.535, 0)
 	GUIObject.PHFrame.Size = UDim2.new(0.425, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A13.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(54, 36, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(100, 70, 0))}
+	GUIObject.UIGradient_A13.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(85, 65, 14)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(85, 65, 14))}
 	GUIObject.UIGradient_A13.Rotation = -90
 	GUIObject.UIGradient_A13.Parent = GUIObject.PHFrame
 
-	GUIObject.UICorner_A13.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A13.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A13.Parent = GUIObject.PHFrame
 
 	GUIObject.PHToggle.Name = "HealToggle"
@@ -22991,12 +23860,12 @@ function RoClothes(Player)
 	GUIObject.PHToggle.BorderSizePixel = 0
 	GUIObject.PHToggle.LayoutOrder = 1
 	GUIObject.PHToggle.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.PHToggle.Font = Enum.Font.Code
+	GUIObject.PHToggle.Font = Enum.Font.GothamMedium
 	GUIObject.PHToggle.Text = "Heal Particles"
 	GUIObject.PHToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.PHToggle.TextScaled = true
 	GUIObject.PHToggle.TextSize = 14.000
-	GUIObject.PHToggle.TextStrokeColor3 = Color3.fromRGB(0, 255, 0)
+	GUIObject.PHToggle.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 	GUIObject.PHToggle.TextStrokeTransparency = 0.000
 	GUIObject.PHToggle.TextWrapped = true
 
@@ -23009,7 +23878,7 @@ function RoClothes(Player)
 
 	GUIObject.UIAspectRatioConstraint_A2.Parent = GUIObject.Recolor
 
-	GUIObject.UICorner_A14.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A14.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A14.Parent = GUIObject.Recolor
 
 	GUIObject.RecolorButton.Name = "RecolorButton"
@@ -23017,7 +23886,7 @@ function RoClothes(Player)
 	GUIObject.RecolorButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.RecolorButton.BackgroundTransparency = 1.000
 	GUIObject.RecolorButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.RecolorButton.Font = Enum.Font.Code
+	GUIObject.RecolorButton.Font = Enum.Font.GothamMedium
 	GUIObject.RecolorButton.Text = "Recolor"
 	GUIObject.RecolorButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.RecolorButton.TextScaled = true
@@ -23025,7 +23894,7 @@ function RoClothes(Player)
 	GUIObject.RecolorButton.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.RecolorButton.TextWrapped = true
 
-	GUIObject.UIGradient_A14.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(27, 27, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(50, 50, 50))}
+	GUIObject.UIGradient_A14.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(38, 32, 60)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(30, 25, 48))}
 	GUIObject.UIGradient_A14.Rotation = -90
 	GUIObject.UIGradient_A14.Parent = GUIObject.Recolor
 
@@ -23067,11 +23936,11 @@ function RoClothes(Player)
 	GUIObject.BodyTransparencyFrame.Position = UDim2.new(0.731, 0, 0.46, 0)
 	GUIObject.BodyTransparencyFrame.Size = UDim2.new(0.425, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A18.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 49, 54)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 83, 100))}
+	GUIObject.UIGradient_A18.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(28, 52, 90)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(28, 52, 90))}
 	GUIObject.UIGradient_A18.Rotation = -90
 	GUIObject.UIGradient_A18.Parent = GUIObject.BodyTransparencyFrame
 
-	GUIObject.UICorner_A18.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A18.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A18.Parent = GUIObject.BodyTransparencyFrame
 
 	GUIObject.BodyTransparencyButton.Name = "BodyTransparencyButton"
@@ -23081,12 +23950,12 @@ function RoClothes(Player)
 	GUIObject.BodyTransparencyButton.BorderSizePixel = 0
 	GUIObject.BodyTransparencyButton.LayoutOrder = 1
 	GUIObject.BodyTransparencyButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.BodyTransparencyButton.Font = Enum.Font.Code
+	GUIObject.BodyTransparencyButton.Font = Enum.Font.GothamMedium
 	GUIObject.BodyTransparencyButton.Text = "Realtime Body Transparency"
 	GUIObject.BodyTransparencyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.BodyTransparencyButton.TextScaled = true
 	GUIObject.BodyTransparencyButton.TextSize = 14.000
-	GUIObject.BodyTransparencyButton.TextStrokeColor3 = Color3.fromRGB(0, 255, 0)
+	GUIObject.BodyTransparencyButton.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 	GUIObject.BodyTransparencyButton.TextStrokeTransparency = 0.000
 	GUIObject.BodyTransparencyButton.TextWrapped = true
 
@@ -23098,11 +23967,11 @@ function RoClothes(Player)
 	GUIObject.HardcoreFrame.Position = UDim2.new(0.5, 0, 0.62, 0)
 	GUIObject.HardcoreFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A19.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(38, 10, 10)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(63, 19, 19))}
+	GUIObject.UIGradient_A19.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(95, 22, 22)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(95, 22, 22))}
 	GUIObject.UIGradient_A19.Rotation = -90
 	GUIObject.UIGradient_A19.Parent = GUIObject.HardcoreFrame
 
-	GUIObject.UICorner_A19.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A19.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A19.Parent = GUIObject.HardcoreFrame
 
 	GUIObject.HardcoreToggle.Name = "HardcoreToggle"
@@ -23112,12 +23981,12 @@ function RoClothes(Player)
 	GUIObject.HardcoreToggle.BorderSizePixel = 0
 	GUIObject.HardcoreToggle.LayoutOrder = 1
 	GUIObject.HardcoreToggle.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.HardcoreToggle.Font = Enum.Font.Code
+	GUIObject.HardcoreToggle.Font = Enum.Font.GothamMedium
 	GUIObject.HardcoreToggle.Text = "Clothing Hardcore HP"
 	GUIObject.HardcoreToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.HardcoreToggle.TextScaled = true
 	GUIObject.HardcoreToggle.TextSize = 14.000
-	GUIObject.HardcoreToggle.TextStrokeColor3 = Color3.fromRGB(0, 255, 0)
+	GUIObject.HardcoreToggle.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 	GUIObject.HardcoreToggle.TextStrokeTransparency = 0.000
 	GUIObject.HardcoreToggle.TextWrapped = true
 
@@ -23193,11 +24062,11 @@ function RoClothes(Player)
 	GUIObject.tailToggleFrame.Position = UDim2.new(0.5, 0, 0.025, 0)
 	GUIObject.tailToggleFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
 
-	GUIObject.UIGradient_A20.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 54, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 0))}
+	GUIObject.UIGradient_A20.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(18, 72, 35)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(18, 72, 35))}
 	GUIObject.UIGradient_A20.Rotation = -90
 	GUIObject.UIGradient_A20.Parent = GUIObject.tailToggleFrame
 
-	GUIObject.UICorner_A20.CornerRadius = UDim.new(0.25, 0)
+	GUIObject.UICorner_A20.CornerRadius = UDim.new(0.12, 0)
 	GUIObject.UICorner_A20.Parent = GUIObject.tailToggleFrame
 
 	GUIObject.tailToggleButton.Name = "TailToggle"
@@ -23207,12 +24076,12 @@ function RoClothes(Player)
 	GUIObject.tailToggleButton.BorderSizePixel = 0
 	GUIObject.tailToggleButton.LayoutOrder = 1
 	GUIObject.tailToggleButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.tailToggleButton.Font = Enum.Font.Code
+	GUIObject.tailToggleButton.Font = Enum.Font.GothamMedium
 	GUIObject.tailToggleButton.Text = "Tail Physics"
 	GUIObject.tailToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.tailToggleButton.TextScaled = true
 	GUIObject.tailToggleButton.TextSize = 14.000
-	GUIObject.tailToggleButton.TextStrokeColor3 = Color3.fromRGB(0, 255, 0)
+	GUIObject.tailToggleButton.TextStrokeColor3 = Color3.fromRGB(70, 190, 100)
 	GUIObject.tailToggleButton.TextStrokeTransparency = 0.000
 	GUIObject.tailToggleButton.TextWrapped = true
 
@@ -23222,20 +24091,20 @@ function RoClothes(Player)
 	GUIObject.optionsframeButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.optionsframeButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	GUIObject.optionsframeButton.Position = UDim2.new(0.784810185, 0, 0.875, 0)
-	GUIObject.optionsframeButton.Size = UDim2.new(0.18244803, 0, 0.128480643, 0)
+	GUIObject.optionsframeButton.Size = UDim2.new(0.155, 0, 0.128480643, 0)
 	local UIAspectRatioConstraint = Instance.new("UIAspectRatioConstraint",GUIObject.optionsframeButton)
 	local UIGradient = Instance.new("UIGradient",GUIObject.optionsframeButton)
 	local UICorner = Instance.new("UICorner",GUIObject.optionsframeButton)
-	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 14, 27)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 27, 50))}
+	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(25, 38, 65)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(25, 38, 65))}
 	UIGradient.Rotation = -90
-	UICorner.CornerRadius = UDim.new(0.25, 0)
+	UICorner.CornerRadius = UDim.new(0.12, 0)
 
 	GUIObject.optionsButton.Name = "Options"
 	GUIObject.optionsButton.Parent = GUIObject.optionsframeButton
 	GUIObject.optionsButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.optionsButton.BackgroundTransparency = 1.000
 	GUIObject.optionsButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.optionsButton.Font = Enum.Font.Code
+	GUIObject.optionsButton.Font = Enum.Font.GothamMedium
 	GUIObject.optionsButton.Text = "Options"
 	GUIObject.optionsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.optionsButton.TextScaled = true
@@ -23258,18 +24127,18 @@ function RoClothes(Player)
 	GUIObject.saveFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	GUIObject.saveFrame.Position = UDim2.new(0.5, 0, 0.025, 0)
 	GUIObject.saveFrame.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
-	local UIGradient = Instance.new("UIGradient",GUIObject.saveFrame)
-	local UICorner = Instance.new("UICorner",GUIObject.saveFrame)
-	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 50, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 100, 0))}
+	UIGradient = Instance.new("UIGradient",GUIObject.saveFrame)
+	UICorner = Instance.new("UICorner",GUIObject.saveFrame)
+	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(18, 72, 48)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(18, 72, 48))}
 	UIGradient.Rotation = -90
-	UICorner.CornerRadius = UDim.new(0.25, 0)
+	UICorner.CornerRadius = UDim.new(0.12, 0)
 
 	GUIObject.saveButton.Name = "saveButton"
 	GUIObject.saveButton.Parent = GUIObject.saveFrame
 	GUIObject.saveButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.saveButton.BackgroundTransparency = 1.000
 	GUIObject.saveButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.saveButton.Font = Enum.Font.Code
+	GUIObject.saveButton.Font = Enum.Font.GothamMedium
 	GUIObject.saveButton.Text = "Save"
 	GUIObject.saveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.saveButton.TextScaled = true
@@ -23285,23 +24154,23 @@ function RoClothes(Player)
 	GUIObject.closeOption.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	GUIObject.closeOption.Position = UDim2.new(0.5, 0, 0.11, 0)
 	GUIObject.closeOption.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
-	local UIGradient = Instance.new("UIGradient",GUIObject.closeOption)
-	local UICorner = Instance.new("UICorner",GUIObject.closeOption)
-	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(53, 15, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(121, 48, 0))}
+	UIGradient = Instance.new("UIGradient",GUIObject.closeOption)
+	UICorner = Instance.new("UICorner",GUIObject.closeOption)
+	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(88, 48, 12)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(88, 48, 12))}
 	UIGradient.Rotation = -90
-	UICorner.CornerRadius = UDim.new(0.25, 0)
+	UICorner.CornerRadius = UDim.new(0.12, 0)
 
 	GUIObject.closeOptionButton.Name = "CloseOption"
 	GUIObject.closeOptionButton.Parent = GUIObject.closeOption
 	GUIObject.closeOptionButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.closeOptionButton.BackgroundTransparency = 1.000
 	GUIObject.closeOptionButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.closeOptionButton.Font = Enum.Font.Code
+	GUIObject.closeOptionButton.Font = Enum.Font.GothamMedium
 	GUIObject.closeOptionButton.Text = "Close UI on Loadup"
 	GUIObject.closeOptionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.closeOptionButton.TextScaled = true
 	GUIObject.closeOptionButton.TextSize = 14.000
-	GUIObject.closeOptionButton.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+	GUIObject.closeOptionButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 	GUIObject.closeOptionButton.TextStrokeTransparency = 0.000
 	GUIObject.closeOptionButton.TextWrapped = true
 
@@ -23312,23 +24181,23 @@ function RoClothes(Player)
 	GUIObject.executeOption.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	GUIObject.executeOption.Position = UDim2.new(0.5, 0, 0.195, 0)
 	GUIObject.executeOption.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
-	local UIGradient = Instance.new("UIGradient",GUIObject.executeOption)
-	local UICorner = Instance.new("UICorner",GUIObject.executeOption)
-	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(53, 15, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(121, 48, 0))}
+	UIGradient = Instance.new("UIGradient",GUIObject.executeOption)
+	UICorner = Instance.new("UICorner",GUIObject.executeOption)
+	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(88, 48, 12)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(88, 48, 12))}
 	UIGradient.Rotation = -90
-	UICorner.CornerRadius = UDim.new(0.25, 0)
+	UICorner.CornerRadius = UDim.new(0.12, 0)
 
 	GUIObject.executeOptionButton.Name = "ExecuteOption"
 	GUIObject.executeOptionButton.Parent = GUIObject.executeOption
 	GUIObject.executeOptionButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.executeOptionButton.BackgroundTransparency = 1.000
 	GUIObject.executeOptionButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.executeOptionButton.Font = Enum.Font.Code
+	GUIObject.executeOptionButton.Font = Enum.Font.GothamMedium
 	GUIObject.executeOptionButton.Text = "Execute on Loadup"
 	GUIObject.executeOptionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.executeOptionButton.TextScaled = true
 	GUIObject.executeOptionButton.TextSize = 14.000
-	GUIObject.executeOptionButton.TextStrokeColor3 = Color3.fromRGB(255, 0, 0)
+	GUIObject.executeOptionButton.TextStrokeColor3 = Color3.fromRGB(180, 60, 60)
 	GUIObject.executeOptionButton.TextStrokeTransparency = 0.000
 	GUIObject.executeOptionButton.TextWrapped = true
 
@@ -23339,18 +24208,18 @@ function RoClothes(Player)
 	GUIObject.FPersonLoadup.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	GUIObject.FPersonLoadup.Position = UDim2.new(0.5, 0, 0.28, 0)
 	GUIObject.FPersonLoadup.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
-	local UIGradient = Instance.new("UIGradient",GUIObject.FPersonLoadup)
-	local UICorner = Instance.new("UICorner",GUIObject.FPersonLoadup)
-	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(53, 15, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(121, 48, 0))}
+	UIGradient = Instance.new("UIGradient",GUIObject.FPersonLoadup)
+	UICorner = Instance.new("UICorner",GUIObject.FPersonLoadup)
+	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(88, 48, 12)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(88, 48, 12))}
 	UIGradient.Rotation = -90
-	UICorner.CornerRadius = UDim.new(0.25, 0)
+	UICorner.CornerRadius = UDim.new(0.12, 0)
 
 	GUIObject.FPersonLoadupButton.Name = "FPersonLoad"
 	GUIObject.FPersonLoadupButton.Parent = GUIObject.FPersonLoadup
 	GUIObject.FPersonLoadupButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.FPersonLoadupButton.BackgroundTransparency = 1.000
 	GUIObject.FPersonLoadupButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.FPersonLoadupButton.Font = Enum.Font.Code
+	GUIObject.FPersonLoadupButton.Font = Enum.Font.GothamMedium
 	GUIObject.FPersonLoadupButton.Text = "FPerson Loadup: false"
 	GUIObject.FPersonLoadupButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.FPersonLoadupButton.TextScaled = true
@@ -23366,18 +24235,18 @@ function RoClothes(Player)
 	GUIObject.bundleLoad.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	GUIObject.bundleLoad.Position = UDim2.new(0.5, 0, 0.365, 0)
 	GUIObject.bundleLoad.Size = UDim2.new(0.891309202, 0, 0.0646399707, 0)
-	local UIGradient = Instance.new("UIGradient",GUIObject.bundleLoad)
-	local UICorner = Instance.new("UICorner",GUIObject.bundleLoad)
-	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(53, 15, 0)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(121, 48, 0))}
+	UIGradient = Instance.new("UIGradient",GUIObject.bundleLoad)
+	UICorner = Instance.new("UICorner",GUIObject.bundleLoad)
+	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(88, 48, 12)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(88, 48, 12))}
 	UIGradient.Rotation = -90
-	UICorner.CornerRadius = UDim.new(0.25, 0)
+	UICorner.CornerRadius = UDim.new(0.12, 0)
 
 	GUIObject.bundleLoadButton.Name = "loadupBundle"
 	GUIObject.bundleLoadButton.Parent = GUIObject.bundleLoad
 	GUIObject.bundleLoadButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.bundleLoadButton.BackgroundTransparency = 1.000
 	GUIObject.bundleLoadButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.bundleLoadButton.Font = Enum.Font.Code
+	GUIObject.bundleLoadButton.Font = Enum.Font.GothamMedium
 	GUIObject.bundleLoadButton.Text = "Loadup Bundle: nil"
 	GUIObject.bundleLoadButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.bundleLoadButton.TextScaled = true
@@ -23389,7 +24258,7 @@ function RoClothes(Player)
 	GUIObject.bundleLoadBox.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.bundleLoadBox.BackgroundTransparency = 1.000
 	GUIObject.bundleLoadBox.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.bundleLoadBox.Font = Enum.Font.Code
+	GUIObject.bundleLoadBox.Font = Enum.Font.GothamMedium
 	GUIObject.bundleLoadBox.PlaceholderText = "Auto Bundle on Loadup"
 	GUIObject.bundleLoadBox.Text = ""
 	GUIObject.bundleLoadBox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -23404,9 +24273,9 @@ function RoClothes(Player)
 	GUIObject.importBundle.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	GUIObject.importBundle.Position = UDim2.new(0.5, 0, 0.45, 0)
 	GUIObject.importBundle.Size = UDim2.new(0.891309202, 0, 0.32, 0)
-	local UIGradient = Instance.new("UIGradient",GUIObject.importBundle)
-	local UICorner = Instance.new("UICorner",GUIObject.importBundle)
-	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(0, 21, 53)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 36, 121))}
+	UIGradient = Instance.new("UIGradient",GUIObject.importBundle)
+	UICorner = Instance.new("UICorner",GUIObject.importBundle)
+	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(28, 52, 95)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(28, 52, 95))}
 	UIGradient.Rotation = -90
 	UICorner.CornerRadius = UDim.new(0.1, 0)
 
@@ -23416,7 +24285,7 @@ function RoClothes(Player)
 	GUIObject.importBundleBox.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.importBundleBox.BackgroundTransparency = 1.000
 	GUIObject.importBundleBox.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.importBundleBox.Font = Enum.Font.Code
+	GUIObject.importBundleBox.Font = Enum.Font.GothamMedium
 	GUIObject.importBundleBox.PlaceholderText = "Import Bundle"
 	GUIObject.importBundleBox.Text = ""
 	GUIObject.importBundleBox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -23433,18 +24302,18 @@ function RoClothes(Player)
 	GUIObject.exportBox.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	GUIObject.exportBox.Position = UDim2.new(0.605, 0, 0.79, 0)
 	GUIObject.exportBox.Size = UDim2.new(0.681, 0, 0.0646399707, 0)
-	local UIGradient = Instance.new("UIGradient",GUIObject.exportBox)
-	local UICorner = Instance.new("UICorner",GUIObject.exportBox)
-	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(68, 0, 35)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(145, 0, 56))}
+	UIGradient = Instance.new("UIGradient",GUIObject.exportBox)
+	UICorner = Instance.new("UICorner",GUIObject.exportBox)
+	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(85, 18, 45)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(85, 18, 45))}
 	UIGradient.Rotation = -90
-	UICorner.CornerRadius = UDim.new(0.25, 0)
+	UICorner.CornerRadius = UDim.new(0.12, 0)
 
 	GUIObject.exportButton.Name = "exportButton"
 	GUIObject.exportButton.Parent = GUIObject.exportBox
 	GUIObject.exportButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.exportButton.BackgroundTransparency = 1.000
 	GUIObject.exportButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.exportButton.Font = Enum.Font.Code
+	GUIObject.exportButton.Font = Enum.Font.GothamMedium
 	GUIObject.exportButton.Text = "Export Bundle"
 	GUIObject.exportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.exportButton.TextScaled = true
@@ -23457,18 +24326,18 @@ function RoClothes(Player)
 	GUIObject.delFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	GUIObject.delFrame.Position = UDim2.new(0.05, 0, 0.79, 0)
 	GUIObject.delFrame.Size = UDim2.new(0.2, 0, 0.0646399707, 0)
-	local UIGradient = Instance.new("UIGradient",GUIObject.delFrame)
-	local UICorner = Instance.new("UICorner",GUIObject.delFrame)
-	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(79, 0, 1)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(172, 0, 3))}
+	UIGradient = Instance.new("UIGradient",GUIObject.delFrame)
+	UICorner = Instance.new("UICorner",GUIObject.delFrame)
+	UIGradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0.00, Color3.fromRGB(95, 18, 22)), ColorSequenceKeypoint.new(1.00, Color3.fromRGB(95, 18, 22))}
 	UIGradient.Rotation = -90
-	UICorner.CornerRadius = UDim.new(0.25, 0)
+	UICorner.CornerRadius = UDim.new(0.12, 0)
 
 	GUIObject.delButton.Name = "exportButton"
 	GUIObject.delButton.Parent = GUIObject.delFrame
 	GUIObject.delButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	GUIObject.delButton.BackgroundTransparency = 1.000
 	GUIObject.delButton.Size = UDim2.new(1, 0, 1, 0)
-	GUIObject.delButton.Font = Enum.Font.Code
+	GUIObject.delButton.Font = Enum.Font.GothamMedium
 	GUIObject.delButton.Text = "Delete Bundle"
 	GUIObject.delButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	GUIObject.delButton.TextScaled = true
@@ -23498,7 +24367,7 @@ function RoClothes(Player)
 	UIGridLayout.CellPadding = UDim2.new(0,0,.02,0)
 	UIGridLayout.CellSize = UDim2.new(.98, 0, 0.33, 0)
 
-	local UIGridLayout = Instance.new("UIAspectRatioConstraint",GUIObject.ImageHeal)
+	UIGridLayout = Instance.new("UIAspectRatioConstraint",GUIObject.ImageHeal)
 	local UIDragger = Instance.new("UIDragDetector",GUIObject.ImageHeal)
 	UIDragger.Enabled = false
 	GUIObject.ImageHeal.Name = "MobileHeal"
@@ -23510,7 +24379,7 @@ function RoClothes(Player)
 	GUIObject.ImageHeal.Image = "rbxassetid://9631050557"
 	GUIObject.ImageHeal.Visible = false
 
-	local UICorner = Instance.new("UICorner",GUIObject.HealButton)
+	UICorner = Instance.new("UICorner",GUIObject.HealButton)
 	UICorner.CornerRadius = UDim.new(1,0)
 	GUIObject.HealButton.Name = "HealButton"
 	GUIObject.HealButton.Parent = GUIObject.ImageHeal
@@ -23524,8 +24393,8 @@ function RoClothes(Player)
 	GUIObject.HealButton.TextSize = 14.000
 	GUIObject.HealButton.TextWrapped = true
 
-	local UIGridLayout = Instance.new("UIAspectRatioConstraint",GUIObject.ImageTear)
-	local UIDragger = Instance.new("UIDragDetector",GUIObject.ImageTear)
+	UIGridLayout = Instance.new("UIAspectRatioConstraint",GUIObject.ImageTear)
+	UIDragger = Instance.new("UIDragDetector",GUIObject.ImageTear)
 	UIDragger.Enabled = false
 	GUIObject.ImageTear.Name = "MobileTear"
 	GUIObject.ImageTear.Parent = GUIObject.hardcoreUI
@@ -23536,7 +24405,7 @@ function RoClothes(Player)
 	GUIObject.ImageTear.Image = "rbxassetid://9631050557"
 	GUIObject.ImageTear.Visible = false
 
-	local UICorner = Instance.new("UICorner",GUIObject.TearButton)
+	UICorner = Instance.new("UICorner",GUIObject.TearButton)
 	UICorner.CornerRadius = UDim.new(1,0)
 	GUIObject.TearButton.Name = "TearButton"
 	GUIObject.TearButton.Parent = GUIObject.ImageTear
@@ -23559,165 +24428,91 @@ function RoClothes(Player)
 	Function.GUIFunc()
 	Function.GUIUpdate()
 
-	--[[
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	
-                               ██████╗░██████╗░███████╗░█████╗░██╗░░██╗███████╗██████╗░
-                               ██╔══██╗██╔══██╗██╔════╝██╔══██╗██║░██╔╝██╔════╝██╔══██╗
-                               ██████╦╝██████╔╝█████╗░░███████║█████═╝░█████╗░░██████╔╝
-                               ██╔══██╗██╔══██╗██╔══╝░░██╔══██║██╔═██╗░██╔══╝░░██╔══██╗
-                               ██████╦╝██║░░██║███████╗██║░░██║██║░╚██╗███████╗██║░░██║
-                               ╚═════╝░╚═╝░░╚═╝╚══════╝╚═╝░░╚═╝╚═╝░░╚═╝╚══════╝╚═╝░░╚═╝
-                                  
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	--------------------------------------------------------------------------------------------------------------
-	]]
 
-	for i, v in pairs(game:GetService("CollectionService"):GetTagged("RoClothes")) do
-		v:Destroy()
-	end
+	function Function.RunInitialization()
+		for i, v in pairs(game:GetService("CollectionService"):GetTagged("RoClothes")) do
+			v:Destroy()
+		end
 
-	local BREAKER = Instance.new("BoolValue")
-	BREAKER.Name = "RoClothesBreaker"
-	BREAKER.Parent = workspace
-
-	local loadui = Instance.new("ScreenGui",game:GetService("CoreGui"))
-	loadui.Enabled = true
-	local oload = Instance.new("ImageLabel",loadui)
-	oload.Image = "rbxasset://RClothesContent/load.png"
-	oload.Size = UDim2.new(1,0,1,0)
-	oload.Transparency = 1
-	oload.ImageTransparency = .999
-	local load = Instance.new("ImageLabel",loadui)
-	load.Image = "rbxasset://RClothesContent/loadv9.png"
-	load.Size = UDim2.new(1,0,1,0)
-	load.Transparency = 1
-	load.ImageTransparency = .999
-	local debounce = 0
-	local loadtxt
-	repeat
-		task.wait(.1)
+		local loadui = Instance.new("ScreenGui",game:GetService("CoreGui"))
+		loadui.Enabled = true
+		local oload = Instance.new("ImageLabel",loadui)
+		local okOload, oloadAsset = pcall(System.getcustomasset, "RClothesContent/load.png")
+		oload.Image = okOload and oloadAsset or ""
+		oload.Size = UDim2.new(1,0,1,0)
+		oload.Transparency = 1
+		oload.ImageTransparency = .999
+		local load = Instance.new("ImageLabel",loadui)
+		local okLoad, loadAsset = pcall(System.getcustomasset, "RClothesContent/loadv9.png")
+		load.Image = okLoad and loadAsset or ""
+		load.Size = UDim2.new(1,0,1,0)
+		load.Transparency = 1
+		load.ImageTransparency = .999
+		if not okOload or not okLoad then
+			warn("Ro-Clothes: loader images missing from workspace (RClothesContent/load.png or loadv9.png) — skipping splash images")
+		end
+		local debounce_load = 0
+		local loadtxt
+		repeat
+			task.wait(.1)
+			if loadtxt then
+				loadtxt:Destroy()
+			end
+			loadtxt = Instance.new("TextLabel",loadui)
+			loadtxt.BackgroundTransparency = 1
+			loadtxt.TextColor3 = Color3.new(1,1,1)
+			loadtxt.TextScaled = true
+			loadtxt.Size = UDim2.new(1,0,1,0)
+			loadtxt.Text = "loading"
+			debounce_load += 1
+		until debounce_load >= 50 or load.IsLoaded == true or not okLoad
 		if loadtxt then
 			loadtxt:Destroy()
 		end
-		loadtxt = Instance.new("TextLabel",loadui)
-		loadtxt.BackgroundTransparency = 1
-		loadtxt.TextColor3 = Color3.new(1,1,1)
-		loadtxt.TextScaled = true
-		loadtxt.Size = UDim2.new(1,0,1,0)
-		loadtxt.Text = "loading"
-		debounce += 1
-	until debounce >= 50 or load.IsLoaded == true
-	if loadtxt then
-		loadtxt:Destroy()
-	end
-	if load.IsLoaded == false then
-		GUIObject.Screen.Enabled = false
-		local BREAKER = Instance.new("BoolValue")
-		BREAKER.Name = "RoClothesBreaker"
-		BREAKER.Parent = workspace
-		if oload.IsLoaded == true then
-			local txt = Instance.new("TextLabel",loadui)
-			txt.BackgroundTransparency = 1
-			txt.TextColor3 = Color3.new(1,1,1)
-			txt.TextScaled = true
-			txt.Size = UDim2.new(1,0,1,0)
-			txt.Text = "WRONG VERSION FILES ARE LOADED"
-			game:GetService("Debris"):AddItem(loadui,2)
-			warn("WRONG VERSION FILES ARE LOADED")
-		else
-			local txt = Instance.new("TextLabel",loadui)
-			txt.BackgroundTransparency = 1
-			txt.TextColor3 = Color3.new(1,1,1)
-			txt.TextScaled = true
-			txt.Size = UDim2.new(1,0,1,0)
-			txt.Text = "FILES ARE NOT LOADED CORRECTLY"
-			game:GetService("Debris"):AddItem(loadui,2)
-			warn("FILES ARE NOT LOADED CORRECTLY")
+		
+		if load.IsLoaded == false then
+			warn("Ro-Clothes: Assets are not fully loaded yet. GUI may appear incomplete until files are found.")
 		end
-	else
-		if loadupFPerson > 0 then
-			PlayerData[Player.Name].FPerson = true
-			if loadupFPerson >= 3 and loadupFPerson < 4 then
-				PlayerData[Player.Name].FPsnap = true
-			end
-			if loadupFPerson >= 4 then
-				PlayerData[Player.Name].HeadTracking = true
-			end
-			if loadupFPerson == 1 or loadupFPerson == 3 or loadupFPerson == 5 then
-				PlayerData[Player.Name].LocalTransparency = {
-					["Head"] = false,
-					["Right Arm"] = true,
-					["Left Arm"] = true,
-					["Torso"] = true,
-					["Right Leg"] = true,
-					["Left Leg"] = true,
-					["Hat"] = true
-				}
-			end
-		end
-		if loadupClosed == false then
-			GUIObject.Screen.Enabled = true
-		end
-		if loadupExecute == true and Player.Character then
-			Function.CharacterExecute(Player.Character, Player.Name)
-		end
-		loadui:Destroy()
-	end
-	task.wait(2)
 
-	if BREAKER.Parent ~= nil then
-		BREAKER:Destroy()
-	end
-
-	task.spawn(function()
-		while task.wait(0.5) do
-			local BreakerObject = game.Workspace:FindFirstChild("RoClothesBreaker")
-
-			if BreakerObject then
-				for _, Connect in pairs(AllConnect) do
-					Connect:Disconnect()
+		if true then -- Force initialization continue
+			if loadupFPerson > 0 then
+				PlayerData[Player.Name].FPerson = true
+				if loadupFPerson >= 3 and loadupFPerson < 4 then
+					PlayerData[Player.Name].FPsnap = true
 				end
-				task.cancel(aWhile)
-
-				GUIObject.Screen:Destroy()
-				GUIObject.MobileCloseButtonScreen:Destroy()
-				BreakerObject:Destroy()
-				print("RoCDC")
-				break
+				if loadupFPerson >= 4 then
+					PlayerData[Player.Name].HeadTracking = true
+				end
+				if loadupFPerson == 1 or loadupFPerson == 3 or loadupFPerson == 5 then
+					PlayerData[Player.Name].LocalTransparency = {
+						["Head"] = false,
+						["Right Arm"] = true,
+						["Left Arm"] = true,
+						["Torso"] = true,
+						["Right Leg"] = true,
+						["Left Leg"] = true,
+						["Hat"] = true
+					}
+				end
 			end
+			if loadupClosed == false then
+				GUIObject.Screen.Enabled = true
+			end
+			if loadupExecute == true and Player.Character then
+				local InitialID = PlayerData[Player.Name].LastRequestID
+				Function.CharacterExecute(Player.Character, Player.Name, nil, InitialID)
+			end
+			loadui:Destroy()
 		end
-	end)
-end
+	end
+
+	Function.RunInitialization()
+
+
+	-- Monitor for external shutdown signal (via Singleton pattern or manual deletion)
+	-- Cleanup loop removed: Now handled by BREAKER.Destroying signal
+end -- close inner block
+end -- close RoClothes
 
 if RS:IsStudio() then
 	RoClothes(PS.LocalPlayer)
@@ -23728,7 +24523,8 @@ else
 		end
 		RoClothes(PS.LocalPlayer)
 	elseif RS:IsServer() then
-		RoClothes(PS:WaitForChild("lerp()"))
+		-- Server-side execution is not supported; RoClothes is client-only
+		-- PS:WaitForChild("lerp()") was a stale placeholder that hangs forever
 	end
 end
 return nil
