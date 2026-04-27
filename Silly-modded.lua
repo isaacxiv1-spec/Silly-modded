@@ -512,7 +512,7 @@ function RoClothes(Player)
 	end
 	-- variables --
 	local hidden = true
-
+	
 	local Mouse = Player:GetMouse()
 
 	local Method2CharacterFolder = game.Workspace:FindFirstChild("Method2CharacterFolder")
@@ -528,7 +528,7 @@ function RoClothes(Player)
 	local TS = game:GetService("TweenService")
 	local MPS = game:GetService("MarketplaceService")
 
-	local CVersion = "0.7.9:lerp(1.01patch)"
+	local CVersion = "0.7.9:lerp()"
 
 	-- these settings are saved and loaded --
 	local loadupBundle = ""
@@ -539,7 +539,7 @@ function RoClothes(Player)
 	local hpKEYBIND = Enum.KeyCode.Equals
 	local dpKEYBIND = Enum.KeyCode.Minus
 	-- you probably shouldnt edit these --
-
+	
 	local maxFPersonMethod = 6
 	local KeybindDetect = false
 	local hpKeybindDetect = false
@@ -629,7 +629,7 @@ function RoClothes(Player)
 
 				stiffness = 96, -- More stiffness is less flexible. Default: 96
 				damping = 9, -- Resistance due to drag (slow down). Default: 9
-				linearAmplitude = Vector3.new(13, 8, 13), -- Default: Vector3.new(48, 19, 48)
+				linearAmplitude = Vector3.new(13, 11, 13), -- Default: Vector3.new(48, 19, 48)
 				angularAmplitude = Vector3.new(0, 25, 0), -- Default: Vector3.new(0, 18, 0)
 				timeScale = 1, -- Creates a floaty feel if slowed down (e.g. 0.3). This also affects the animation. Default: 1
 
@@ -690,7 +690,6 @@ function RoClothes(Player)
 			SavedPreviousHP = 0,
 			SavedTopHP = 0,
 			SavedBottomHP = 0,
-			LinkedHeal = false,
 			Healing = false,
 			HealProgress = 0,
 			HardcoreHP = false,
@@ -722,7 +721,7 @@ function RoClothes(Player)
 				Organ = {},
 				Clothes = {},
 				Accessory = {},
-				Link = {},
+				TransparencyLink = {},
 				ParentTransparency = {},
 				RealtimeUpdateList = {
 					["Mesh"] = {},
@@ -9458,151 +9457,6 @@ function RoClothes(Player)
 				},
 				["Function"] = "twitchEffect"
 			}, 
-
-			["Gagball"] = {
-				["Instance"] = "Mesh",
-				["Name"] = "Gag",
-				["MeshId"] = "rbxasset://RClothesContent/125407727899995.mesh",
-				["Size"] = Vector3.new(0.3389059901237488, 0.23136401176452637, 0.2169249951839447),
-				["CFrame"] = CFrame.new(0.000183105469, -0.299804688, -0.554199219, 1, 2.98910063e-11, 2.21007213e-10, 2.98910063e-11, 1, -1.38129508e-11, 2.21007213e-10, -1.38129508e-11, 1),
-				["DoubleSided"] = true,
-				["Material"] = Enum.Material.SmoothPlastic,
-				["Color"] = {
-					["Tone"] = "Base",
-					["Color"] = Color3.fromRGB(151, 0, 0),
-				},
-				["Recolor"] = "Secondary",
-				["Parent"] = {
-					[1] = "Head",
-				},
-			},
-			["Rings"] = {
-				["Instance"] = "Mesh",
-				["Name"] = "Rings",
-				["MeshId"] = "rbxasset://RClothesContent/126207903140227.mesh",
-				["Size"] = Vector3.new(0.5676199793815613, 0.29948100447654724, 1.2570090293884277),
-				["CFrame"] = CFrame.new(0.0001831056, -0.161437988, 0.000244140567, 1, 2.98910063e-11, 2.21007213e-10, 2.98910063e-11, 1, -1.38129508e-11, 2.21007213e-10, -1.38129508e-11, 1),
-				["DoubleSided"] = true,
-				["Material"] = Enum.Material.Metal,
-				["Color"] = {
-					["Tone"] = "Base",
-					["Color"] = Color3.fromRGB(255, 176, 0),
-				},
-				["Recolor"] = "Tertiary",
-				["Parent"] = {
-					[1] = "Head",
-				},
-			},
-			["BlindfoldnStrings"] = {
-				["Instance"] = "Mesh",
-				["Name"] = "BlindfoldnStrings",
-				["MeshId"] = "rbxasset://RClothesContent/117579990951626.mesh",
-				["Size"] = Vector3.new(1.2427160739898682, 0.9725499153137207, 1.257615089416504),
-				["CFrame"] = CFrame.new(0.000200000126, 0.128499985, -6.38890399e-11, -1, 2.98910063e-11, -1.5121681e-07, -2.98910098e-11, 1, 1.38129464e-11, 1.50774795e-07, -1.38129508e-11, -1),
-				["DoubleSided"] = true,
-				["Material"] = Enum.Material.SmoothPlastic,
-				["Color"] = {
-					["Tone"] = "Base",
-					["Color"] = Color3.fromRGB(17, 17, 17),
-				},
-				["Recolor"] = "Primary",
-				["Parent"] = {
-					[1] = "Head",
-				},
-			},
-			["BoobLSticker"] = {
-				["Instance"] = "Mesh",
-				["Name"] = "Sticker",
-				["MeshId"] = "rbxasset://RClothesContent/122731312930854.mesh",
-				["Size"] = Vector3.new(0.3385309875011444, 0.3058493733406067, 0.19147002696990967),
-				["CFrame"] = CFrame.new(-0.513988376, -0.203552589, -0.00698015094, -0.320868045, -0.184720367, -0.928935945, -0.223423839, 0.967879057, -0.115290403, 0.920394182, 0.170553446, -0.35183239),
-				["DoubleSided"] = true,
-				["Material"] = Enum.Material.SmoothPlastic,
-				["Color"] = {
-					["Tone"] = "Base",
-					["Color"] = Color3.fromRGB(255, 85, 127),
-				},
-				["Recolor"] = "Primary",
-				["Parent"] = {
-					[1] = "Torso",
-					[2] = "Left Breast",
-				},
-				["Scale"] = "BreastsScale",
-			},
-			["BoobRSticker"] = {
-				["Instance"] = "Mesh",
-				["Name"] = "Sticker",
-				["MeshId"] = "rbxasset://RClothesContent/101022033899288.mesh",
-				["Size"] = Vector3.new(0.3155589997768402, 0.284628689289093, 0.18900001049041748),
-				["CFrame"] = CFrame.new(-0.51558733, -0.199715003, 0.00117352605, 0.320868224, -0.184720367, -0.928935945, 0.223423868, 0.967879057, -0.115290359, 0.920394063, -0.170553446, 0.351832569),
-				["DoubleSided"] = true,
-				["Material"] = Enum.Material.SmoothPlastic,
-				["Color"] = {
-					["Tone"] = "Base",
-					["Color"] = Color3.fromRGB(255, 85, 127),
-				},
-				["Recolor"] = "Primary",
-				["Parent"] = {
-					[1] = "Torso",
-					[2] = "Right Breast",
-				},
-				["Scale"] = "BreastsScale",
-			},
-			["BoobLPlaster"] = {
-				["Instance"] = "Mesh",
-				["Name"] = "Plaster",
-				["MeshId"] = "rbxasset://RClothesContent/4456097417.mesh",
-				["Size"] = Vector3.new(0.5591715574264526, 0.17451530694961548, 0.20974421501159668),
-				["CFrame"] = CFrame.new(-0.511307359, -0.170958325, 0.00240787864, -0.0996558666, 0.000605791807, 0.995022476, -0.987483799, 0.122801185, -0.0989756212, -0.122249804, -0.992431164, -0.0116397738),
-				["DoubleSided"] = true,
-				["TextureId"] = "rbxasset://RClothesContent/72220484711693.png",
-				["Material"] = Enum.Material.SmoothPlastic,
-				["Color"] = {
-					["Tone"] = "Base",
-					["Color"] = Color3.fromRGB(248, 248, 248),
-				},
-				["Parent"] = {
-					[1] = "Torso",
-					[2] = "Left Breast",
-				},
-				["Scale"] = "BreastsScale",
-			},
-			["BoobRPlaster"] = {
-				["Instance"] = "Mesh",
-				["Name"] = "Plaster",
-				["MeshId"] = "rbxasset://RClothesContent/4456097417.mesh",
-				["Size"] = Vector3.new(0.5591715574264526, 0.17451530694961548, 0.20974421501159668),
-				["CFrame"] = CFrame.new(-0.512138605, -0.208334178, 0.0029540062, 0.00785023719, 0.0404656529, 0.999150038, -0.999737382, -0.0212033801, 0.00871357322, 0.0215379708, -0.998955965, 0.0402886271),
-				["DoubleSided"] = true,
-				["TextureId"] = "rbxasset://RClothesContent/72220484711693.png",
-				["Material"] = Enum.Material.SmoothPlastic,
-				["Color"] = {
-					["Tone"] = "Base",
-					["Color"] = Color3.fromRGB(248, 248, 248),
-				},
-				["Parent"] = {
-					[1] = "Torso",
-					[2] = "Right Breast",
-				},
-				["Scale"] = "BreastsScale",
-			},
-			["Pussy Plaster"] = {
-				["Instance"] = "Mesh",
-				["Name"] = "Pussy Plaster",
-				["MeshId"] = "rbxasset://RClothesContent/4456097417.mesh",
-				["Size"] = Vector3.new(0.5591715574264526, 0.17451530694961548, 0.20974421501159668),
-				["CFrame"] = CFrame.new(-0.00397865567, -1.31688511, -0.269547939, -0.0667800158, 0.9977265, 0.00905931368, -0.496949971, -0.0411328562, 0.866804123, 0.865206122, 0.0533831976, 0.498567045),
-				["DoubleSided"] = true,
-				["TextureId"] = "rbxasset://RClothesContent/72220484711693.png",
-				["Material"] = Enum.Material.SmoothPlastic,
-				["Color"] = {
-					["Tone"] = "Base",
-					["Color"] = Color3.fromRGB(248, 248, 248),
-				},
-				["Parent"] = {
-					[1] = "Torso",
-				},
-			},
 		}
 	end
 
@@ -11248,37 +11102,6 @@ function RoClothes(Player)
 				[1] = "TwitchEffect",
 			}
 		},
-		["Pussy Plaster"] = {
-			["Weld"] = {
-				[1] = "Pussy Plaster",
-			},
-			["HP"] = 4,
-		},
-		["Boob Plasters"] = {
-			["Weld"] = {
-				[1] = "BoobLPlaster",
-				[2] = "BoobRPlaster",
-			},
-			["HP"] = 3,
-		},
-		["Nipple Heart Stickers"] = {
-			["Weld"] = {
-				[1] = "BoobLSticker",
-				[2] = "BoobRSticker",
-			},
-			["Unvisible"] = {
-				"Left Nipple",
-				"Right Nipple",
-			},
-			["HP"] = 3,
-		},
-		["Gag w/ Blindfold"] = {
-			["Weld"] = {
-				[1] = "BlindfoldnStrings",
-				[2] = "Rings",
-				[3] = "Gagball",
-			}
-		},
 	}
 
 	local PartList = Function.PartListDefault()
@@ -11470,7 +11293,7 @@ function RoClothes(Player)
 						overlayWeld.Part1 = v
 						overlay.Size = v.Size + Vector3.new(.001,.001,.001)
 						overlay.Transparency = 0.01
-						PlayerData[Data].CurrentPartList.Link[overlay] = {T=v,Define=.01}
+						PlayerData[Data].CurrentPartList.TransparencyLink[overlay] = {T=v,Define=.01}
 						PlayerData[Data].CurrentPartList.RealtimeUpdateList.Mesh[overlay] = {Base=v.Parent,Size=overlay.Size,CFrame=CFrame.new(0,0,0),CFrame1=CFrame.new(0,0,0),Weld=overlayWeld}
 						overlay.TextureID = v:FindFirstChildOfClass("SurfaceAppearance").ColorMap
 					end
@@ -11497,7 +11320,7 @@ function RoClothes(Player)
 						overlayWeld.Part1 = v
 						overlay.Size = v.Size + Vector3.new(.001,.001,.001)
 						overlay.Transparency = 0.01
-						PlayerData[Data].CurrentPartList.Link[overlay] = {T=v,Define=.01}
+						PlayerData[Data].CurrentPartList.TransparencyLink[overlay] = {T=v,Define=.01}
 						PlayerData[Data].CurrentPartList.RealtimeUpdateList.Mesh[overlay] = {Base=v.Parent,Size=overlay.Size,CFrame=CFrame.new(0,0,0),CFrame1=CFrame.new(0,0,0),Weld=overlayWeld}
 						overlay.TextureID = v:FindFirstChildOfClass("SurfaceAppearance").ColorMap
 					end
@@ -11537,7 +11360,7 @@ function RoClothes(Player)
 						overlayWeld.Part1 = v
 						overlay.Size = v.Size + Vector3.new(.001,.001,.001)
 						overlay.Transparency = 0.01
-						PlayerData[Data].CurrentPartList.Link[overlay] = {T=v,Define=.01}
+						PlayerData[Data].CurrentPartList.TransparencyLink[overlay] = {T=v,Define=.01}
 						PlayerData[Data].CurrentPartList.RealtimeUpdateList.Mesh[overlay] = {Base=v.Parent,Size=overlay.Size,CFrame=CFrame.new(0,0,0),CFrame1=CFrame.new(0,0,0),Weld=overlayWeld}
 					end
 					v:FindFirstChildOfClass("SurfaceAppearance"):Destroy()
@@ -11573,7 +11396,7 @@ function RoClothes(Player)
 						overlayWeld.Part1 = v
 						overlay.Size = v.Size + Vector3.new(.001,.001,.001)
 						overlay.Transparency = 0.01
-						PlayerData[Data].CurrentPartList.Link[overlay] = {T=v,Define=.01}
+						PlayerData[Data].CurrentPartList.TransparencyLink[overlay] = {T=v,Define=.01}
 						PlayerData[Data].CurrentPartList.RealtimeUpdateList.Mesh[overlay] = {Base=v.Parent,Size=overlay.Size,CFrame=CFrame.new(0,0,0),CFrame1=CFrame.new(0,0,0),Weld=overlayWeld}
 					end
 					v:FindFirstChildOfClass("SurfaceAppearance"):Destroy()
@@ -11770,7 +11593,7 @@ function RoClothes(Player)
 			end
 			Texture.Texture = "rbxassetid://7317286674"
 			Texture.Transparency = 0.55
-			PlayerData[Data].CurrentPartList.Link[Texture] = {T=ObjectInstance,Define=.55}
+			PlayerData[Data].CurrentPartList.TransparencyLink[Texture] = {T=ObjectInstance,Define=.55}
 
 			if i == 1 then
 				Texture.Face = "Left"
@@ -11801,7 +11624,7 @@ function RoClothes(Player)
 			end
 			Texture.Texture = "rbxassetid://7317286674"
 			Texture.Transparency = 0.3
-			PlayerData[Data].CurrentPartList.Link[Texture] = {T=ObjectInstance,Define=.3}
+			PlayerData[Data].CurrentPartList.TransparencyLink[Texture] = {T=ObjectInstance,Define=.3}
 
 			if i == 1 then
 				Texture.Face = "Left"
@@ -11839,7 +11662,7 @@ function RoClothes(Player)
 				end
 			end)
 			Texture.Transparency = transparency
-			PlayerData[Data].CurrentPartList.Link[Texture] = {T=ObjectInstance,Define=transparency}
+			PlayerData[Data].CurrentPartList.TransparencyLink[Texture] = {T=ObjectInstance,Define=transparency}
 
 			if i == 1 then
 				Texture.Face = "Left"
@@ -11870,7 +11693,7 @@ function RoClothes(Player)
 		frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 		frame.BorderSizePixel = 0
 	end
-
+	
 	function Function.twitchEffect(ObjectInstance, Character, Extra, Data)
 		task.spawn(function()
 			repeat
@@ -12340,38 +12163,34 @@ function RoClothes(Player)
 		end
 	end
 
-	function Function.TorsoShirtTexture(ObjectInstance, Character, Extra, Data, transparency)
+	function Function.TorsoShirtTexture(ObjectInstance, Character, Extra, Data)
 		if Extra.Shirt and Extra.Shirt.ShirtTemplate and (table.find(PlayerData[Data].CurrentClothes, "Roblox Shirt") or table.find(PlayerData[Data].CurrentClothes, "New Woman") or table.find(PlayerData[Data].CurrentClothes, "Roblox Breasts Clothing")) then
 			if ObjectInstance.Material == Enum.Material.Glass or ObjectInstance:HasTag("RCGlassMat") then
 				ObjectInstance.TextureID = Extra.Shirt.ShirtTemplate
-				if (transparency == nil or transparency ~= false) and ObjectInstance.Transparency < 1 then
+				if ObjectInstance.Transparency < 1 then
 					ObjectInstance.Transparency = 0.011
 				end
 			else
 				local SP = Instance.new("SurfaceAppearance", ObjectInstance)
 				SP.ColorMap = Extra.Shirt.ShirtTemplate
 				SP.AlphaMode = Enum.AlphaMode.Transparency
-				if transparency == nil or transparency ~= false then
-					ObjectInstance.Transparency = 0
-				end
+				ObjectInstance.Transparency = 0
 			end
 		end
 	end
 
-	function Function.TorsoPantsTexture(ObjectInstance, Character, Extra, Data, transparency)
+	function Function.TorsoPantsTexture(ObjectInstance, Character, Extra, Data)
 		if Extra.Pants and Extra.Pants.PantsTemplate and (table.find(PlayerData[Data].CurrentClothes, "Roblox Pants")) then
 			if ObjectInstance.Material == Enum.Material.Glass or ObjectInstance:HasTag("RCGlassMat") then
 				ObjectInstance.TextureID = Extra.Pants.PantsTemplate
-				if (transparency == nil or transparency ~= true) and ObjectInstance.Transparency < 1 then
+				if ObjectInstance.Transparency < 1 then
 					ObjectInstance.Transparency = 0.011
 				end
 			else
 				local SP = Instance.new("SurfaceAppearance", ObjectInstance)
 				SP.ColorMap = Extra.Pants.PantsTemplate
 				SP.AlphaMode = Enum.AlphaMode.Transparency
-				if transparency == nil or transparency ~= true then
-					ObjectInstance.Transparency = 0
-				end
+				ObjectInstance.Transparency = 0
 			end
 		end
 	end
@@ -12652,9 +12471,9 @@ function RoClothes(Player)
 						if v.Name == "Torso Shirt" then
 							v:SetAttribute("maxDeterminedRC",false)
 							v:SetAttribute("MaxTransparenyRC",nil)
-							--v.Transparency = v.Parent.Transparency
+							v.Transparency = v.Parent.Transparency
 						end
-						Function.TorsoShirtTexture(v,nil,{Shirt = PData.HPClothes.Shirt},Data,false)
+						Function.TorsoShirtTexture(v,nil,{Shirt = PData.HPClothes.Shirt},Data)
 					end
 				end
 			end
@@ -12699,7 +12518,7 @@ function RoClothes(Player)
 						v:FindFirstChildOfClass("SurfaceAppearance"):Destroy()
 					end
 					if c:FindFirstChildOfClass("Shirt") then
-						Function.TorsoShirtTexture(v,c,{Shirt = c:FindFirstChildOfClass("Shirt")},Data,false)
+						Function.TorsoShirtTexture(v,c,{Shirt = c:FindFirstChildOfClass("Shirt")},Data)
 					end
 				end
 			end
@@ -12798,7 +12617,7 @@ function RoClothes(Player)
 	function Function.ShirtPop(Visible, Character, Data, Clothing)
 		local PData = PlayerData[Data]
 		if Visible == false then
-
+			
 		end
 	end
 
@@ -13567,7 +13386,7 @@ function RoClothes(Player)
 		end
 		return value,true
 	end
-
+	
 	function Function.toFormatString(value)
 		if typeof(value) == "Color3" then
 			return string.format("Color3.fromRGB(%s, %s, %s)", value.R * 255, value.G * 255, value.B * 255)
@@ -14056,17 +13875,11 @@ function RoClothes(Player)
 								Part.Color = v.Color
 
 								local Weld = Instance.new("Weld", Part)
+								Weld.Part0 = v
 								Weld.Part1 = Part
 
 								if Part.Name == "HumanoidRootPart" then
-									if CharacterValue.Value:FindFirstChild("Torso") then
-										Weld.Part0 = CharacterValue.Value:FindFirstChild("Torso")
-									else
-										Weld.Part0 = v
-									end
 									Character.PrimaryPart = Part
-								else
-									Weld.Part0 = v
 								end
 
 								local detectRemoval
@@ -14208,7 +14021,7 @@ function RoClothes(Player)
 				end
 
 				ObjectInstance.Color = Color
-
+				
 				ObjectInstance.CanCollide = false
 				ObjectInstance.CanQuery = false
 				ObjectInstance.CanTouch = false
@@ -14219,7 +14032,7 @@ function RoClothes(Player)
 				ObjectInstance.Transparency = TRANSPARENCY
 				ObjectInstance.Reflectance = REFLECTANCE
 				ObjectInstance.Material = MATERIAL
-
+				
 				if Parent and not Function.IsParentNil(Parent) and not Function.FallenPartCheck(Parent) then
 					ObjectInstance.CFrame = Parent.CFrame
 				end
@@ -14459,7 +14272,7 @@ function RoClothes(Player)
 				CHandle.Size = HandleSize
 				CSpecialMesh.Scale = Scale
 			end
-
+			
 			CHandle.CanCollide = false
 			CHandle.CanQuery = false
 			CHandle.CanTouch = false
@@ -14468,7 +14281,7 @@ function RoClothes(Player)
 
 			CAccessory.Parent = Character
 			v:Destroy()
-
+			
 			CHandle.CFrame = CParentAttachment.Parent.CFrame
 			local Weld = Instance.new("Weld", CHandle)
 			Weld.Part0 = CHandle
@@ -14570,11 +14383,9 @@ function RoClothes(Player)
 						local decalObjecct = game:GetObjects("rbxassetid://"..id)[1]
 						return decalObjecct
 					end)
-					if success and decalObjecct:IsA("Decal") then
+					if success then
 						return decalObjecct.Texture
-					elseif string.gsub(id,"%D","") == tostring(id) then
-						warn("Clothing ID ".. id.. " returned as invalid clothing! Decal method was detected invalid as well."..
-							" If you're using an image ID, this is a false positive.")
+					elseif string.gsub(id,"%D","") == id then
 						return "rbxassetid://".. id
 					else
 						return id
@@ -14632,8 +14443,8 @@ function RoClothes(Player)
 					newHead.Material = v.Material
 					newHead.Reflectance = v.Reflectance
 					PlayerData[Data].CurrentPartList.Organ["Head"] = newHead
-					PlayerData[Data].CurrentPartList.Link[newHead] = {T=v, Color=v}
-
+					PlayerData[Data].CurrentPartList.TransparencyLink[newHead] = {T=v}
+					
 					newHead.CFrame = v.CFrame
 					local Weld = Instance.new("Weld", newHead)
 					Weld.Part0 = v
@@ -14646,7 +14457,7 @@ function RoClothes(Player)
 							end
 							local newDC=head:FindFirstChildOfClass("Decal"):Clone()
 							newDC.Parent = newHead
-							PlayerData[Data].CurrentPartList.Link[newDC] = {T=newHead}
+							PlayerData[Data].CurrentPartList.TransparencyLink[newDC] = {T=newHead}
 						elseif OldFC then
 							OldFC.Parent = newHead
 						end
@@ -14700,7 +14511,7 @@ function RoClothes(Player)
 						newHead.Material = h.Material
 						newHead.Reflectance = h.Reflectance
 						PlayerData[Data].CurrentPartList.Organ["Head"] = newHead
-
+						
 						newHead.CFrame = h.CFrame
 						local Weld = Instance.new("Weld", newHead)
 						Weld.Part0 = h
@@ -14730,24 +14541,20 @@ function RoClothes(Player)
 						if head:FindFirstChildOfClass("Decal") then
 							if OldFC then
 								OldFC.Transparency = 1
-								PlayerData[Data].CurrentPartList.ParentTransparency[OldFC] = {D = 0,T=1}
+								PlayerData[Data].CurrentPartList.ParentTransparency[OldFC] = {D = 0}
 							end
 							local d = head:FindFirstChildOfClass("Decal"):Clone()
-							PlayerData[Data].CurrentPartList.Link[d] = {T=h}
+							PlayerData[Data].CurrentPartList.TransparencyLink[d] = {T=h}
 							d.Parent = h
 						elseif OldFC then
-							if OldFC then
-								OldFC.Transparency = 1
-								PlayerData[Data].CurrentPartList.ParentTransparency[OldFC] = {D = 0,T=1}
-							end
 							local o = OldFC:Clone()
 							PlayerData[Data].CurrentPartList.ParentTransparency[o] = {D = 1}
-							PlayerData[Data].CurrentPartList.Link[o] = {T=h}
+							PlayerData[Data].CurrentPartList.TransparencyLink[o] = {T=h}
 							o.Parent = h
 						end
 					elseif OldFC then
 						OldFC.Transparency = 1
-						PlayerData[Data].CurrentPartList.ParentTransparency[OldFC] = {D = 0,T=1}
+						PlayerData[Data].CurrentPartList.ParentTransparency[OldFC] = {D = 0}
 					end
 				else
 					if head:FindFirstChildOfClass("Decal") and PlayerData[Data].Face == true then
@@ -15009,7 +14816,7 @@ function RoClothes(Player)
 					end
 				end
 			end
-
+			
 			if PartListPlayer.OriginalTransparency then
 				for i, v in pairs(PartListPlayer.OriginalTransparency) do
 					i.Transparency = v
@@ -15280,7 +15087,7 @@ function RoClothes(Player)
 					Part.Material = Enum.Material.SmoothPlastic
 					Part:SetAttribute("Visibility",1)
 					Part:AddTag("Visibility")
-
+					
 					Part.CFrame = BasePart.CFrame
 					local Weld = Instance.new("Weld", Part)
 					Weld.Part0 = BasePart
@@ -15389,21 +15196,14 @@ function RoClothes(Player)
 							Part.Massless = true
 							Part.CustomPhysicalProperties = PhysicalProperties.new(0.0001)
 							Part.Color = v.Color
-
+							
 							Part.CFrame = v.CFrame
 							local Weld = Instance.new("Weld", Part)
 							Weld.Part0 = v
 							Weld.Part1 = Part
 
 							if Part.Name == "HumanoidRootPart" then
-								if CharacterValue.Value:FindFirstChild("Torso") then
-									Weld.Part0 = CharacterValue.Value:FindFirstChild("Torso")
-								else
-									Weld.Part0 = v
-								end
 								Character.PrimaryPart = Part
-							else
-								Weld.Part0 = v
 							end
 
 							local detectRemoval
@@ -15670,8 +15470,8 @@ function RoClothes(Player)
 				local RIGHTAREOLA = Function.Weld(PartListData["Right Areola Type 4"], Character, Extra, Data)
 				local LEFTNIPPLE = Function.Weld(PartListData["Left Nipple Type 4"], Character, Extra, Data)
 				local RIGHTNIPPLE = Function.Weld(PartListData["Right Nipple Type 4"], Character, Extra, Data)
-				PlayerData[Data].CurrentPartList.Link[LEFTAREOLA] = {T=LEFTNIPPLE}
-				PlayerData[Data].CurrentPartList.Link[RIGHTAREOLA] = {T=RIGHTNIPPLE}
+				PlayerData[Data].CurrentPartList.TransparencyLink[LEFTAREOLA] = {T=LEFTNIPPLE}
+				PlayerData[Data].CurrentPartList.TransparencyLink[RIGHTAREOLA] = {T=RIGHTNIPPLE}
 
 				PlayerData[Data].CurrentPartList["Organ"]["Left Areola"] = LEFTAREOLA
 				PlayerData[Data].CurrentPartList["Organ"]["Right Areola"] = RIGHTAREOLA
@@ -16064,7 +15864,7 @@ function RoClothes(Player)
 			end
 
 			if FaceDecal and DataDetail.Face == false then
-				FaceDecal.Transparency = 1
+				--FaceDecal.Transparency = 1
 				DataDetail.CurrentPartList.ParentTransparency[FaceDecal] = {D = 0, T = 1}
 			end
 			task.wait()
@@ -16199,7 +15999,7 @@ function RoClothes(Player)
 	end
 
 	function Function.IsCharacter(Model)
-		return Model and (Model:FindFirstChild("Torso") or Model:FindFirstChild("Head") or Model:FindFirstChild("Right Arm") or Model:FindFirstChild("Left Arm") or Model:FindFirstChild("Right Leg") or Model:FindFirstChild("Left Leg"))
+		return Model:FindFirstChild("Torso") or Model:FindFirstChild("Head") or Model:FindFirstChild("Right Arm") or Model:FindFirstChild("Left Arm") or Model:FindFirstChild("Right Leg") or Model:FindFirstChild("Left Leg")
 	end
 
 	function Function.GUIUpdate()
@@ -16819,15 +16619,15 @@ function RoClothes(Player)
 							tap = false
 							if data["Healing"] == true and (data["TopHP"] ~= "" and data["SavedTopHP"] < data["TopHP"] 
 								or data["BottomHP"] ~= "" and data["SavedBottomHP"] < data["BottomHP"]) then
-								--local healTime = 0
+								local healTime = 0
 								local timeAccumulated = 0
 								local totalTime = 0
-								--[[if data["TopHP"] ~= "" then
+								if data["TopHP"] ~= "" then
 									healTime += math.max((data["TopHP"]/math.max(data["SavedTopHP"],1))*0.04,.5)
 								end
 								if data["BottomHP"] ~= "" then
 									healTime += math.max((data["BottomHP"]/math.max(data["SavedBottomHP"],1))*0.04,.5)
-								end]]
+								end
 
 								GUIObject.repairDisplay.Color = ColorSequence.new(
 									{ColorSequenceKeypoint.new(0,Color3.new(1,1,1)),
@@ -16853,44 +16653,11 @@ function RoClothes(Player)
 									if data["BottomHP"] ~= "" and (data["TopHP"] == "" 
 										or data["SavedBottomHP"] <= 0 or data["SavedTopHP"]/data["TopHP"] >= data["SavedBottomHP"]/data["BottomHP"]) then
 										focus = "BottomHP"
-										local fullTime = math.max(data["BottomHP"]/50,.5)
-										if data["SavedBottomHP"] <= 0 then
-											timeRequired = fullTime
-										else
-											timeRequired = math.max(math.lerp(fullTime*.8,0,data["SavedBottomHP"]/data["BottomHP"]),.25)
-										end
-										--timeRequired = math.max((data["BottomHP"]/math.max(data["SavedBottomHP"],1))*0.04,.5)
+										timeRequired = math.max((data["BottomHP"]/math.max(data["SavedBottomHP"],1))*0.04,.5)
 									elseif data["TopHP"] ~= "" and (data["BottomHP"] == "" 
 										or data["SavedTopHP"] <= 0 or data["SavedTopHP"]/data["TopHP"] < data["SavedBottomHP"]/data["BottomHP"]) then
 										focus = "TopHP"
-										local fullTime = math.max(data["TopHP"]/50,.5)
-										if data["SavedTopHP"] <= 0 then
-											timeRequired = fullTime
-										else
-											timeRequired = math.max(math.lerp(fullTime*.8,0,data["SavedTopHP"]/data["TopHP"]),.25)
-										end
-										--timeRequired = math.max((data["TopHP"]/math.max(data["SavedTopHP"],1))*0.04,.5)
-									end
-									if data["TopHP"] ~= "" and data["BottomHP"] ~= "" and data["LinkedHeal"] == true then
-										focus = "Both"
-										local fullTime
-										local timeBottom = math.max(data["BottomHP"]/50,.5)
-										local timeTop = math.max(data["TopHP"]/50,.5)
-										if timeBottom < timeTop then
-											fullTime = timeTop
-											if data["SavedTopHP"] <= 0 or data["SavedBottomHP"] <= 0 then
-												timeRequired = fullTime
-											else
-												timeRequired = math.max(math.lerp(fullTime*.8,0,data["SavedTopHP"]/data["TopHP"]),.25)
-											end
-										else
-											fullTime = timeBottom
-											if data["SavedTopHP"] <= 0 or data["SavedBottomHP"] <= 0 then
-												timeRequired = fullTime
-											else
-												timeRequired = math.max(math.lerp(fullTime*.8,0,data["SavedBottomHP"]/data["BottomHP"]),.25)
-											end
-										end
+										timeRequired = math.max((data["TopHP"]/math.max(data["SavedTopHP"],1))*0.04,.5)
 									end
 									local t = task.wait()
 									timeAccumulated += t
@@ -16900,10 +16667,7 @@ function RoClothes(Player)
 										timeAccumulated = 0
 										if focus == "TopHP" then
 											data["SavedTopHP"]=data["TopHP"]
-										elseif focus == "BottomHP" then
-											data["SavedBottomHP"]=data["BottomHP"]
-										elseif focus == "Both" then
-											data["SavedTopHP"]=data["TopHP"]
+										else
 											data["SavedBottomHP"]=data["BottomHP"]
 										end
 									end
@@ -16982,9 +16746,6 @@ function RoClothes(Player)
 								elseif data["BottomHP"] ~= "" and data["SavedBottomHP"]/data["BottomHP"] > 0 then
 									focus = "BottomHP"
 								end
-								if data["LinkedHeal"] == true then
-									focus = "Both"
-								end
 								local t = task.wait()
 								timeAccumulated += t
 								GUIObject.repairDisplay.Offset = Vector2.new(timeAccumulated/timeRequired,0)
@@ -16992,10 +16753,7 @@ function RoClothes(Player)
 									timeAccumulated = 0
 									if focus == "TopHP" then
 										data["SavedTopHP"]=0
-									elseif focus == "BottomHP" then
-										data["SavedBottomHP"]=0
-									elseif focus == "Both" then
-										data["SavedTopHP"]=0
+									else
 										data["SavedBottomHP"]=0
 									end
 								end
@@ -17961,13 +17719,13 @@ function RoClothes(Player)
 
 				local oldBase
 				local Base = Property.Base
-				if Part.Parent == nil or Function.FallenPartCheck(Part) or not Base then
-					DataList.CurrentPartList.RealtimeUpdateList.Mesh[Part] = nil
-					Removed = true
-				end
 				if Method == 2 or Method == 3 then
 					oldBase = Base
 					Base = DataList.Character:FindFirstChild(Base.Name)
+				end
+				if Part.Parent == nil or Function.FallenPartCheck(Part) or not Base then
+					DataList.CurrentPartList.RealtimeUpdateList.Mesh[Part] = nil
+					Removed = true
 				end
 
 				if Removed == false then
@@ -18237,12 +17995,8 @@ function RoClothes(Player)
 								return DataList.CurrentPartList["TrueMeshSize"].Part
 							end)
 							if success then
-								local x = 1-(1.198/math.max(trueSize.Size.X,1.198))
-								local y = 1-(1.202/math.max(trueSize.Size.Y,1.202))
-								local z = 1-(1.198/math.max(trueSize.Size.Z,1.198))
-								local scale = Vector3.new(SM.Scale.X+x,SM.Scale.Y+y,SM.Scale.Z+z)
-								CalcSize = scale
-								BodySize = BodyPartSize["HeadScale"]
+								CalcSize = trueSize.Size*SM.Scale
+								BodySize = BodyPartSize["HeadMeshFix"]
 							else
 								CalcSize = SM.Scale
 								BodySize = BodyPartSize["HeadScale"]
@@ -18556,12 +18310,12 @@ function RoClothes(Player)
 					end
 				end
 			end
-
-			for Part, Property in pairs(DataList.CurrentPartList.Link) do
+			
+			for Part, Property in pairs(DataList.CurrentPartList.TransparencyLink) do
 				local Removed = false
 
 				if Part.Parent == nil or Function.IsParentNil(Part) or Function.FallenPartCheck(Part) then
-					DataList.CurrentPartList.Link[Part] = nil
+					DataList.CurrentPartList.TransparencyLink[Part] = nil
 
 					Removed = true
 				end
@@ -18575,10 +18329,6 @@ function RoClothes(Player)
 
 					Part.LocalTransparencyModifier = math.clamp(Property.T.LocalTransparencyModifier,D,math.huge)
 					Part.Transparency = math.clamp(T,D,math.huge)
-
-					if Property.Color and Property.Color.Color then
-						Part.Color = Property.Color.Color
-					end
 				end
 			end
 
@@ -18949,18 +18699,10 @@ function RoClothes(Player)
 				p.RespectCanCollide = true
 				p.FilterDescendantsInstances = {Part,findAllInvisOnRay()}
 				p.FilterType = Enum.RaycastFilterType.Exclude
-
-				for i, v in pairs(game:GetService("PhysicsService"):GetCollisionGroups()) do
-					p.CollisionGroup = v.name
-					local r = workspace:Raycast(ray.Origin,ray.Direction*999,p)
-					if r and r.Instance:FindFirstAncestorOfClass("Model") ~= game:GetService("Players").LocalPlayer.Character then
-						Part = r.Instance
-						if Function.IsCharacter(Part:FindFirstAncestorOfClass("Model")) then
-							break
-						end
-					end
+				local r = workspace:Raycast(ray.Origin,ray.Direction*999,p)
+				if r and r.Instance:FindFirstAncestorOfClass("Model") ~= game:GetService("Players").LocalPlayer.Character then
+					Part = r.Instance
 				end
-
 			end
 
 			if Part and Part:FindFirstAncestorOfClass("Model") ~= nil then
@@ -19019,16 +18761,9 @@ function RoClothes(Player)
 				p.RespectCanCollide = true
 				p.FilterDescendantsInstances = {Part,findAllInvisOnRay()}
 				p.FilterType = Enum.RaycastFilterType.Exclude
-				
-				for i, v in pairs(game:GetService("PhysicsService"):GetCollisionGroups()) do
-					p.CollisionGroup = v.name
-					local r = workspace:Raycast(ray.Origin,ray.Direction*999,p)
-					if r and r.Instance:FindFirstAncestorOfClass("Model") ~= game:GetService("Players").LocalPlayer.Character then
-						Part = r.Instance
-						if Function.IsCharacter(Part:FindFirstAncestorOfClass("Model")) then
-							break
-						end
-					end
+				local r = workspace:Raycast(ray.Origin,ray.Direction*999,p)
+				if r and r.Instance:FindFirstAncestorOfClass("Model") ~= game:GetService("Players").LocalPlayer.Character then
+					Part = r.Instance
 				end
 			end
 
@@ -19139,7 +18874,7 @@ function RoClothes(Player)
 	--------------------------------------------------------------------------------------------------------------
 	--------------------------------------------------------------------------------------------------------------
 	]]
-
+	
 	function Function.compileOvertime()
 		task.spawn(function()
 			local filesFound = env.listfiles("RClothesLerp/Bundles")
@@ -19181,7 +18916,7 @@ function RoClothes(Player)
 			end
 		end)
 	end
-
+	
 
 	local HPButtons = {}
 	function Function.GUIFunc()
@@ -19792,7 +19527,7 @@ function RoClothes(Player)
 		local BundleButtons = {}
 		local ClothesButtons = {}
 		local RecolorButtons = {}
-
+		
 		local function convertTableToString(t,indent)
 			indent = indent or 0
 			local s = ""
@@ -19826,7 +19561,7 @@ function RoClothes(Player)
 			s = s .. convertTableToString(t, 1) .. "},"
 			return s
 		end
-
+		
 		local function checkBundle(v)
 
 			if v.ClearClothing and v.ClearClothing == true then
@@ -19966,7 +19701,7 @@ function RoClothes(Player)
 						warn(v.. " does not exist. Update your bundle!")
 						continue
 					end
-
+					
 					if Clothes[v].Blacklist then
 						for i, b in pairs(Clothes[v].Blacklist) do
 							if table.find(PlayerData[SelectPlayer].CurrentClothes, b) then
@@ -20089,7 +19824,7 @@ function RoClothes(Player)
 						if PropertyName == "CockScale" then
 							PlayerData[SelectPlayer].CockScale = v
 						elseif PropertyName == "Color" then
-							local RGB = Function.StringTo(tostring(v.R*255 .."," ..v.G*255 ..","..v.B*255), "RGB")
+							local RGB = Function.StringTo(tostring(v), "RGB")
 							PlayerData[SelectPlayer]["PartList"][Name][PropertyName].Color = RGB
 						else
 							PlayerData[SelectPlayer]["PartList"][Name][PropertyName] = v
@@ -20158,9 +19893,9 @@ function RoClothes(Player)
 					DetectingBundle = false
 					GUIObject.Bundles.Visible = false
 					GUIObject.optionsFrame.Visible = true
-
+					
 					local exportString = toBundleFormat(v, BButton.Name)
-
+					
 					local successfulCopy = pcall(function()
 						if env.copy then
 							GUIObject.exportButton.Text = "Copied exported bundle!"
@@ -20677,7 +20412,7 @@ function RoClothes(Player)
 							end
 							return str
 						end
-
+						
 						local allBundlesSuccess = true
 						local s, ouput = pcall(function()
 							for name, input in pairs(ouput) do
